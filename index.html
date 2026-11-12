@@ -3264,6 +3264,21 @@ window.TBParse = (function(){
     try { return (localStorage.getItem('tbResolveEndpoint') || '').replace(/\s+$/, ''); } catch (e) { return ''; }
   }
 
+  // 兼容不同后端返回结构：{ok,itemId} / {itemId} / {data:{itemId}} / 任何含 ID 的 JSON
+  function pickId(d){
+    if (!d) return null;
+    var cands = [d.itemId, d.item_id, d.id,
+                 d.data && d.data.itemId, d.data && d.data.item_id, d.data && d.data.id];
+    for (var i = 0; i < cands.length; i++){
+      var v = cands[i];
+      if (typeof v === 'number' || typeof v === 'string'){
+        var s = String(v);
+        if (/^\d{6,}$/.test(s)) return s;
+      }
+    }
+    try { return idOf(JSON.stringify(d)); } catch (e) { return null; }
+  }
+
   function remoteResolve(u, cb){
     var list = [], ep = endpoint();
     if (ep) list.push(ep + (ep.indexOf('?') >= 0 ? '&' : '?') + 'url=' + encodeURIComponent(u));
@@ -3280,7 +3295,8 @@ window.TBParse = (function(){
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        if (d && d.ok && d.itemId) { cb(null, String(d.itemId)); } else { step(i + 1); }
+        var id = pickId(d);
+        if (id) { cb(null, id); } else { step(i + 1); }
       }).catch(function(){
         if (settled) return;
         settled = true;
