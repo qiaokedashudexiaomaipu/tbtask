@@ -44,12 +44,6 @@
   /* 短链展开引导：静态托管时用来「打开链接 → 复制地址栏 → 回来粘贴」 */
   a.btn-short { text-decoration:none; display:block; line-height:1.4; }
   a.btn-short:hover { color:#fff; }
-  /* 第三方解析接口设置：折叠入口 + 两列表单 */
-  .api-toggle { margin:14px 2px 0; font-size:13px; color:var(--sub); cursor:pointer; user-select:none; }
-  .api-toggle:hover { color:var(--orange); }
-  .api-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:8px; margin-top:10px; }
-  .api-grid .api-input { width:100%; box-sizing:border-box; border:1px solid var(--line); border-radius:9px; padding:9px 10px; font-size:13px; font-family:inherit; color:inherit; background:#fff; }
-  .api-grid #apiUrl { grid-column:1 / -1; }
   .note { font-size:12px; color:var(--sub); line-height:1.8; }
   .shop { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
   .shop-divider { width:1px; align-self:stretch; background:var(--line); }
@@ -126,32 +120,6 @@
       <a class="btn btn-short" id="shareShortOpen" href="#" target="_blank" rel="noopener noreferrer">打开链接取商品 ID</a>
     </div>
     <div class="hint" id="shareHint"></div>
-  </div>
-
-  <div class="api-toggle" id="apiToggle" role="button" tabindex="0">⚙ 解析接口设置（接自建 Cloudflare Worker 或第三方解析，可选）</div>
-  <div class="card" id="apiCard" style="display:none;">
-    <div class="label">解析接口（推荐：自部署 Cloudflare Worker，免费、无需 Key）</div>
-    <div class="api-grid">
-      <input class="api-input" id="apiUrl" type="url" placeholder="接口地址，如 https://tb-parse.你的名字.workers.dev">
-      <select class="api-input" id="apiMethod">
-        <option value="POST">POST（JSON）</option>
-        <option value="GET">GET（网址传参）</option>
-      </select>
-      <select class="api-input" id="apiKeyIn">
-        <option value="header">Key 放请求头</option>
-        <option value="query">Key 放参数</option>
-        <option value="none">不需要 Key</option>
-      </select>
-      <input class="api-input" id="apiKeyName" type="text" placeholder="Key 名称，如 apikey">
-      <input class="api-input" id="apiKeyVal" type="password" placeholder="Key 值">
-      <input class="api-input" id="apiParam" type="text" placeholder="链接参数名，默认 url">
-    </div>
-    <div class="btn-row">
-      <button class="btn primary" id="apiSaveBtn" type="button">保存</button>
-      <button class="btn" id="apiTestBtn" type="button">测试</button>
-      <button class="btn btn-clear" id="apiClearBtn" type="button">清除</button>
-    </div>
-    <div class="hint" id="apiHint">推荐方案：部署同目录 <b>cf-worker.js</b>（免费 Cloudflare Worker，自带解析、无需 Key）→ 把 workers.dev 地址填上面，方式选 GET、Key 选「不需要 Key」→ 保存。也可接第三方接口。配置只存本机浏览器，不写进网页；返回 JSON 里带商品 ID 即可（itemId / id / num_iid / data.id 都认）。</div>
   </div>
 
   <input type="hidden" id="itemId" autocomplete="off">
@@ -3128,53 +3096,7 @@ window.TBParse = (function(){
     return /(^|\/\/)(?:[a-z0-9-]+\.)?tb\.cn\//i.test(u) || /(^|\/\/)s\.click\.taobao\.com\//i.test(u);
   }
 
-  /* ---- 第三方解析接口（可选，配置只存在本机 localStorage，不写进页面源码）----
-     多数第三方接口不允许网页跨域直连，直连被拦时用同目录 cf-worker.js 的中转地址即可。 */
-  var API_KEY = 'tbResolveApi';
-
-  function apiConfig(){
-    var cfg = null;
-    try { cfg = JSON.parse(localStorage.getItem(API_KEY) || 'null'); } catch (e) { cfg = null; }
-    if (cfg && cfg.url) return cfg;
-    // 兼容旧的自建接口写法（tbResolveEndpoint）
-    var ep = '';
-    try { ep = (localStorage.getItem('tbResolveEndpoint') || '').replace(/\s+$/, ''); } catch (e) { ep = ''; }
-    if (ep) return { url: ep, method: 'GET', keyIn: 'none', keyName: '', keyVal: '', param: 'url' };
-    return null;
-  }
-
-  function saveApiConfig(cfg){
-    try {
-      if (cfg && cfg.url) localStorage.setItem(API_KEY, JSON.stringify(cfg));
-      else localStorage.removeItem(API_KEY);
-      return true;
-    } catch (e) { return false; }
-  }
-
-  // 按配置拼请求：GET 走查询串，POST 走 JSON body；Key 可放请求头 / 查询串 / 不用
-  function buildRequest(cfg, target){
-    var method = (cfg.method || 'POST').toUpperCase();
-    var param = cfg.param || 'url';
-    var headers = {};
-    var body;
-    var finalUrl = cfg.url;
-    if (method === 'GET'){
-      var q = encodeURIComponent(param) + '=' + encodeURIComponent(target);
-      if (cfg.keyIn === 'query' && cfg.keyName) q += '&' + encodeURIComponent(cfg.keyName) + '=' + encodeURIComponent(cfg.keyVal || '');
-      finalUrl += (finalUrl.indexOf('?') >= 0 ? '&' : '?') + q;
-    } else {
-      headers['Content-Type'] = 'application/json';
-      var payload = {};
-      payload[param] = target;
-      body = JSON.stringify(payload);
-      // POST + Key 放参数：Key 拼在网址上（body 里只放链接）
-      if (cfg.keyIn === 'query' && cfg.keyName){
-        finalUrl += (finalUrl.indexOf('?') >= 0 ? '&' : '?') + encodeURIComponent(cfg.keyName) + '=' + encodeURIComponent(cfg.keyVal || '');
-      }
-    }
-    if (cfg.keyIn === 'header' && cfg.keyName) headers[cfg.keyName] = cfg.keyVal || '';
-    return { url: finalUrl, init: { method: method, headers: headers, body: body } };
-  }
+  /* ---- 解析接口：仅同源 /api/resolve（本地 node server.js 起的服务；静态托管下不存在）---- */
 
   // 兼容不同后端返回结构：{ok,itemId} / {itemId} / {data:{itemId|id}} / 任何含 ID 的 JSON
   function pickId(d){
@@ -3214,29 +3136,10 @@ window.TBParse = (function(){
     });
   }
 
-  // 依次尝试：配置的第三方接口 → 同源后端（本地 server.js）
+  // 同源后端解析（本地 server.js；静态托管下不存在这个接口）
   function remoteResolve(u, cb){
-    var list = [];
-    var cfg = apiConfig();
-    if (cfg) list.push(buildRequest(cfg, u));
-    if (!STATIC_HOST) list.push(buildRequest({ url: '/api/resolve', method: 'GET', keyIn: 'none', param: 'url' }, u));
-    if (!list.length || typeof fetch !== 'function'){ cb('没有配置可用接口'); return; }
-    var lastErr = '';
-    (function step(i){
-      if (i >= list.length){ cb(lastErr || '解析失败'); return; }
-      oneCall(list[i], 10000, function(err, id){
-        if (id){ cb(null, id); return; }
-        lastErr = err || lastErr;
-        step(i + 1);
-      });
-    })(0);
-  }
-
-  // 「测试」按钮：拿当前粘贴的链接打一次，把原始错误透出来
-  function testApi(target, cb){
-    var cfg = apiConfig();
-    if (!cfg){ cb('还没配置接口地址'); return; }
-    oneCall(buildRequest(cfg, target), 12000, cb);
+    if (STATIC_HOST || typeof fetch !== 'function'){ cb('没有可用解析接口'); return; }
+    oneCall({ url: '/api/resolve?url=' + encodeURIComponent(u), init: { method: 'GET' } }, 10000, cb);
   }
 
   // ---- 短链引导：打开一次 → 复制地址栏 → 回到本页自动识别 ----
@@ -3281,9 +3184,6 @@ window.TBParse = (function(){
     urlOf: urlOf,
     isShortLink: isShortLink,
     remoteResolve: remoteResolve,
-    apiConfig: apiConfig,
-    saveApiConfig: saveApiConfig,
-    testApi: testApi,
     showShortHelp: showShortHelp,
     hideShortHelp: hideShortHelp
   };
@@ -3354,7 +3254,7 @@ window.TBParse = (function(){
     }
     if (!P) { setHint('解析组件未加载，请刷新页面后重试', 'err'); return; }
     // 没配接口 + 纯静态托管 + 短链：直接走引导，不做注定失败的请求
-    if (P.staticHost() && !P.apiConfig() && P.isShortLink(url)) { askShort(url); return; }
+    if (P.staticHost() && P.isShortLink(url)) { askShort(url); return; }
     setHint('正在解析链接…');
     P.remoteResolve(url, function(err, id){
       if (id) { use(id); return; }
@@ -3384,65 +3284,6 @@ window.TBParse = (function(){
     setHint('');
     try { shareInput.focus(); } catch (e) {}
   });
-
-  // ---- 第三方解析接口设置（折叠面板）----
-  var apiToggle = document.getElementById('apiToggle');
-  var apiCard = document.getElementById('apiCard');
-  var apiHint = document.getElementById('apiHint');
-  if (apiToggle && apiCard && apiHint && P){
-    var F = { url: 'apiUrl', method: 'apiMethod', keyIn: 'apiKeyIn', keyName: 'apiKeyName', keyVal: 'apiKeyVal', param: 'apiParam' };
-    var el = function(k){ return document.getElementById(F[k]); };
-    var setApiHint = function(m, c){ apiHint.textContent = m; apiHint.className = 'hint' + (c ? ' ' + c : ''); };
-
-    var fillForm = function(){
-      var cfg = P.apiConfig();
-      if (!cfg) return;
-      el('url').value = cfg.url || '';
-      el('method').value = (cfg.method || 'POST').toUpperCase();
-      el('keyIn').value = cfg.keyIn || 'header';
-      el('keyName').value = cfg.keyName || '';
-      el('keyVal').value = cfg.keyVal || '';
-      el('param').value = cfg.param || 'url';
-    };
-    var readForm = function(){
-      return {
-        url: el('url').value.replace(/\s+$/, ''),
-        method: el('method').value,
-        keyIn: el('keyIn').value,
-        keyName: el('keyName').value.replace(/\s+$/, ''),
-        keyVal: el('keyVal').value.replace(/\s+$/, ''),
-        param: el('param').value.replace(/\s+$/, '') || 'url'
-      };
-    };
-
-    apiToggle.addEventListener('click', function(){
-      var open = apiCard.style.display !== 'none';
-      apiCard.style.display = open ? 'none' : '';
-      if (!open) fillForm();
-    });
-    document.getElementById('apiSaveBtn').addEventListener('click', function(){
-      var cfg = readForm();
-      if (!cfg.url){ setApiHint('请先填接口地址', 'err'); return; }
-      if (!/^https?:\/\//i.test(cfg.url)){ setApiHint('接口地址要以 http(s):// 开头', 'err'); return; }
-      if (P.saveApiConfig(cfg)) setApiHint('已保存到本机浏览器（换设备 / 换浏览器要重新填）', 'ok');
-      else setApiHint('保存失败：浏览器禁用了本地存储', 'err');
-    });
-    document.getElementById('apiTestBtn').addEventListener('click', function(){
-      var raw = (shareInput.value || '').trim();
-      var target = P.urlOf(raw) || 'https://m.tb.cn/h.jjuhNix';
-      setApiHint('正在测试 ' + target.slice(0, 48) + ' …');
-      P.testApi(target, function(err, id){
-        if (id) setApiHint('接口可用 ✓ 解析到商品 ID：' + id + '（建议点「保存」固化配置）', 'ok');
-        else setApiHint('测试失败：' + err, 'err');
-      });
-    });
-    document.getElementById('apiClearBtn').addEventListener('click', function(){
-      P.saveApiConfig(null);
-      el('url').value = ''; el('keyName').value = ''; el('keyVal').value = ''; el('param').value = '';
-      el('method').value = 'POST'; el('keyIn').value = 'header';
-      setApiHint('已清除本机配置', 'ok');
-    });
-  }
 })();
 </script>
 
@@ -3522,7 +3363,7 @@ window.TBParse = (function(){
       setHint('没找到链接，请把分享的整段文字粘进来，或直接粘贴纯数字的商品 ID', 'err'); return;
     }
     if (!P){ setHint('解析组件未加载，请刷新页面后重试', 'err'); return; }
-    if (P.staticHost() && !P.apiConfig() && P.isShortLink(url)){ askShort(url); return; }
+    if (P.staticHost() && P.isShortLink(url)){ askShort(url); return; }
     setHint('正在解析链接…');
     P.remoteResolve(url, function(err, id){
       if (id){ render(id); return; }
