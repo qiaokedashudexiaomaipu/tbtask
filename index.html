@@ -249,7 +249,7 @@
       <button class="btn" id="apiTestBtn" type="button">测试</button>
       <button class="btn btn-clear" id="apiClearBtn" type="button">清除</button>
     </div>
-    <div class="hint" id="apiHint">推荐方案①：电脑上双击同目录 <b>启动解析服务.bat</b>（需装 Node.js，免费零配置）→ 下面填 <b>http://localhost:3000/api/resolve</b>，方式 GET、Key 选「不需要 Key」→ 保存。方案②：部署 <b>cf-worker.js</b>（Cloudflare Worker）填 workers.dev 地址。配置只存本机浏览器，不写进网页；返回 JSON 里带商品 ID 即可（itemId / id / num_iid / data.id 都认）。<b>不配置时页面也会自动探测 localhost:3000，开着本地服务即全自动。</b></div>
+    <div class="hint" id="apiHint">推荐方案：部署同目录 <b>cf-worker.js</b>（免费 Cloudflare Worker，自带解析、无需 Key）→ 把 workers.dev 地址填上面，方式选 GET、Key 选「不需要 Key」→ 保存。也可接第三方接口。配置只存本机浏览器，不写进网页；返回 JSON 里带商品 ID 即可（itemId / id / num_iid / data.id 都认）。</div>
   </div>
 
   <input type="hidden" id="itemId" autocomplete="off">
@@ -3376,22 +3376,17 @@ window.TBParse = (function(){
     });
   }
 
-  // 依次尝试：配置的第三方接口 → 本机解析服务（localhost:3000，电脑上双击「启动解析服务.bat」）→ 同源后端
+  // 依次尝试：配置的第三方接口 → 同源后端（本地 server.js）
   function remoteResolve(u, cb){
     var list = [];
     var cfg = apiConfig();
-    if (cfg) {
-      list.push({ req: buildRequest(cfg, u), timeout: 10000 });
-    } else if (STATIC_HOST && typeof fetch === 'function') {
-      // 纯静态托管：自动探测本机解析服务（3 秒没响应就静默跳过，不影响别人）
-      list.push({ req: buildRequest({ url: 'http://localhost:3000/api/resolve', method: 'GET', keyIn: 'none', param: 'url' }, u), timeout: 3000 });
-    }
-    if (!STATIC_HOST) list.push({ req: buildRequest({ url: '/api/resolve', method: 'GET', keyIn: 'none', param: 'url' }, u), timeout: 10000 });
+    if (cfg) list.push(buildRequest(cfg, u));
+    if (!STATIC_HOST) list.push(buildRequest({ url: '/api/resolve', method: 'GET', keyIn: 'none', param: 'url' }, u));
     if (!list.length || typeof fetch !== 'function'){ cb('没有配置可用接口'); return; }
     var lastErr = '';
     (function step(i){
       if (i >= list.length){ cb(lastErr || '解析失败'); return; }
-      oneCall(list[i].req, list[i].timeout, function(err, id){
+      oneCall(list[i], 10000, function(err, id){
         if (id){ cb(null, id); return; }
         lastErr = err || lastErr;
         step(i + 1);
@@ -3520,7 +3515,8 @@ window.TBParse = (function(){
       return;
     }
     if (!P) { setHint('解析组件未加载，请刷新页面后重试', 'err'); return; }
-    // 先试着打解析接口（第三方 / 本机解析服务），失败再走手动引导
+    // 没配接口 + 纯静态托管 + 短链：直接走引导，不做注定失败的请求
+    if (P.staticHost() && !P.apiConfig() && P.isShortLink(url)) { askShort(url); return; }
     setHint('正在解析链接…');
     P.remoteResolve(url, function(err, id){
       if (id) { use(id); return; }
@@ -3688,7 +3684,7 @@ window.TBParse = (function(){
       setHint('没找到链接，请把分享的整段文字粘进来，或直接粘贴纯数字的商品 ID', 'err'); return;
     }
     if (!P){ setHint('解析组件未加载，请刷新页面后重试', 'err'); return; }
-    // 先试着打解析接口（第三方 / 本机解析服务），失败再走手动引导
+    if (P.staticHost() && !P.apiConfig() && P.isShortLink(url)){ askShort(url); return; }
     setHint('正在解析链接…');
     P.remoteResolve(url, function(err, id){
       if (id){ render(id); return; }
