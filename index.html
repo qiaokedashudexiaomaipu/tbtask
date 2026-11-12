@@ -1,0 +1,3755 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>淘宝任务二维码生成器</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --orange:#ff5000; --red:#c0392b; --ink:#1f2329; --sub:#6b7280; --line:#eceef1; --ok:#16a34a; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--ink); padding:40px 16px; }
+  .wrap { max-width:640px; margin:0 auto; }
+  .meta { color:var(--sub); font-size:13px; }
+  #parseMeta { margin:2px 2px 12px; font-weight:700; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:16px; }
+  .label { font-size:13px; color:var(--sub); margin-bottom:8px; }
+  .qr-label { font-size:15px; color:var(--red); font-weight:700; margin-bottom:10px; }
+  /* 二维码标题旁的补充备注小标（如「暂不反肥料」） */
+  .qr-label-note { display:inline-block; margin-left:6px; padding:1px 7px; border-radius:999px; background:#fff4e6; border:1px solid #fed7aa; color:var(--orange); font-size:12px; font-weight:700; line-height:1.5; vertical-align:2px; }
+  /* 红色警示版备注小标（如「6万大部分不给肥料了」） */
+  .qr-label-note-red { background:#fee2e2; border-color:#fca5a5; color:#dc2626; }
+  .input-row { display:flex; gap:10px; }
+  input[type=text] { flex:1; font-size:16px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; outline:none; transition:border .15s; }
+  input[type=text]:focus { border-color:var(--orange); }
+  .clear { border:1px solid var(--line); background:#fff; color:var(--sub); border-radius:10px; padding:0 16px; cursor:pointer; font-size:14px; }
+  .clear:hover { color:var(--orange); border-color:var(--orange); }
+  .hint { font-size:12px; color:var(--sub); margin-top:8px; min-height:16px; }
+  .hint.err { color:#dc2626; }
+  .hint.ok { color:var(--ok); }
+  .qrcard { display:none; text-align:center; }
+  .qrcard.show { display:block; }
+  .qr-box { display:inline-block; background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; }
+  #qr img, #qr svg { display:block; width:240px; height:240px; }
+  .bb-item { text-align:center; margin-top:18px; }
+  .bb-item .qr-label { text-align:center; }
+  .tip { font-size:12px; color:var(--sub); margin-top:12px; }
+  .btn-row { display:flex; gap:10px; margin-top:14px; }
+  .btn { flex:1; border:1px solid var(--orange); color:var(--orange); background:#fff; border-radius:10px; padding:9px 0; font-size:14px; cursor:pointer; text-align:center; }
+  .btn:hover { background:var(--orange); color:#fff; }
+  .btn.primary { background:var(--orange); color:#fff; }
+  .btn.primary:hover { filter:brightness(1.05); }
+  /* 次要操作（清空）：窄按钮 + 灰调，不与主操作抢视觉 */
+  .btn-row .btn-clear { flex:0 0 auto; padding:9px 16px; color:#6b7280; border-color:#d1d5db; }
+  .btn-row .btn-clear:hover { background:#f3f4f6; color:#374151; border-color:#9ca3af; }
+  .note { font-size:12px; color:var(--sub); line-height:1.8; }
+  .shop { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  .shop-divider { width:1px; align-self:stretch; background:var(--line); }
+  .shop-copy-btn { flex-shrink:0; width:106px; min-height:88px; display:flex; align-items:center; justify-content:center; padding:10px 8px; border:0; border-radius:9px; background:linear-gradient(135deg,#ff5000,#ff7a29); color:#fff; font-size:12px; font-weight:700; line-height:1.45; text-align:center; font-family:inherit; cursor:pointer; }
+  .shop-copy-btn:hover { filter:brightness(1.05); }
+  .shop-copy-btn:active { filter:brightness(.94); }
+  .shop-copy-btn.done { background:linear-gradient(135deg,#16a34a,#22c55e); }
+  .shop-title { font-weight:700; font-size:15px; margin-bottom:6px; }
+  .shop-addr { color:var(--red); font-weight:700; font-size:13px; line-height:1.7; flex:1; min-width:0; }
+  .shop-row { display:flex; align-items:center; gap:14px; flex:1 1 100%; }
+  .shop-qq-label { font-size:12px; color:var(--sub); margin-bottom:6px; }
+  .shop-qq { display:flex; flex-wrap:wrap; gap:6px; }
+  .shop-qq span { background:#f3f4f6; border-radius:6px; padding:2px 8px; font-size:12px; color:#374151; }
+  .marquee { position:relative; overflow:hidden; background:#fff8f0; border:1px solid #fed7aa; border-radius:10px; padding:9px 0; margin-bottom:16px; }
+  .marquee::before, .marquee::after { content:''; position:absolute; top:0; bottom:0; width:26px; pointer-events:none; z-index:2; }
+  .marquee::before { left:0; background:linear-gradient(90deg,#fff8f0,rgba(255,248,240,0)); }
+  .marquee::after { right:0; background:linear-gradient(270deg,#fff8f0,rgba(255,248,240,0)); }
+  .marquee-track { display:inline-flex; width:max-content; white-space:nowrap; will-change:transform; -webkit-animation:marquee-scroll 32s linear infinite; animation:marquee-scroll 32s linear infinite; }
+  .marquee:hover .marquee-track { -webkit-animation-play-state:paused; animation-play-state:paused; }
+  .marquee-item { flex:0 0 auto; padding:0 32px; font-size:13px; font-weight:600; line-height:1.4; color:#c2410c; }
+  .marquee-item::after { content:'●'; margin-left:64px; font-size:8px; vertical-align:2px; color:#fdba74; }
+  @-webkit-keyframes marquee-scroll { from { -webkit-transform:translateX(0); transform:translateX(0); } to { -webkit-transform:translateX(-50%); transform:translateX(-50%); } }
+  @keyframes marquee-scroll { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+  .qq-foot { text-align:center; margin-top:24px; }
+  .qq-foot-title { font-size:14px; font-weight:700; margin-bottom:10px; }
+  .qq-foot .shop-qq { justify-content:center; gap:8px; }
+  .qq-foot .shop-qq span { font-size:13px; padding:5px 12px; border-radius:8px; }
+  .modal-mask { position:fixed; left:0; top:0; right:0; bottom:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:24px; z-index:999; -webkit-overflow-scrolling:touch; }
+  .modal-mask.hide { display:none; }
+  .modal-box { position:relative; width:100%; max-width:340px; background:#fff; border-radius:16px; padding:26px 20px 20px; text-align:center; box-shadow:0 14px 44px rgba(0,0,0,.24); -webkit-animation:modal-in .22s ease-out both; animation:modal-in .22s ease-out both; }
+  @-webkit-keyframes modal-in { from { opacity:0; -webkit-transform:translateY(14px) scale(.96); transform:translateY(14px) scale(.96); } to { opacity:1; -webkit-transform:none; transform:none; } }
+  @keyframes modal-in { from { opacity:0; transform:translateY(14px) scale(.96); } to { opacity:1; transform:none; } }
+  .modal-close { position:absolute; top:6px; right:8px; width:32px; height:32px; border:0; border-radius:50%; background:transparent; color:#9ca3af; font-size:22px; line-height:1; font-family:inherit; cursor:pointer; }
+  .modal-close:hover { background:#f3f4f6; color:#374151; }
+  .modal-tag { display:inline-block; font-size:11px; font-weight:700; color:#fff; background:linear-gradient(135deg,#e53935,#ff7043); border-radius:20px; padding:3px 12px; margin-bottom:10px; }
+  .modal-title { font-size:20px; font-weight:800; color:var(--red); margin-bottom:6px; }
+  .modal-sub { font-size:12px; color:var(--sub); margin-bottom:16px; }
+  .modal-copy-btn { width:100%; border:0; border-radius:10px; padding:13px 0; background:linear-gradient(135deg,#ff5000,#ff7a29); color:#fff; font-family:inherit; font-size:15px; font-weight:700; line-height:1.4; cursor:pointer; }
+  .modal-copy-btn:hover { filter:brightness(1.05); }
+  .modal-copy-btn:active { filter:brightness(.94); }
+  .modal-copy-btn.done { background:linear-gradient(135deg,#16a34a,#22c55e); }
+  /* 京东口令弹窗：紫色主题（标签 / 标题 / 按钮统一换紫） */
+  .modal-box.theme-jd { box-shadow:0 14px 44px rgba(109,40,217,.28); }
+  .modal-box.theme-jd .modal-tag { background:linear-gradient(135deg,#7c3aed,#a855f7); }
+  .modal-box.theme-jd .modal-title { color:#6d28d9; }
+  .modal-box.theme-jd .modal-copy-btn { background:linear-gradient(135deg,#7c3aed,#a855f7); }
+  .modal-box.theme-jd .modal-copy-btn.done { background:linear-gradient(135deg,#16a34a,#22c55e); }
+  /* 底部四个入口 = 一个模块，内部 2×2（一排 2 个、共 2 排） */
+  .quick-module { margin:24px 0 16px; padding:12px; background:#fff; border:1px solid var(--line); border-radius:14px; }
+  .quick-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .quick-tile { display:flex; flex-direction:column; justify-content:center; align-items:center; gap:5px; box-sizing:border-box; min-height:96px; padding:13px 8px; border:1px solid transparent; border-radius:12px; font-family:inherit; text-align:center; cursor:pointer; }
+  .quick-tile-main { font-size:15px; font-weight:700; line-height:1.35; }
+  .quick-tile-sub { font-size:11.5px; font-weight:600; line-height:1.3; opacity:.85; }
+  .quick-tile-tip { font-size:12px; font-weight:600; line-height:1.2; opacity:.9; }
+  .quick-tile:hover { filter:brightness(1.03); }
+  .quick-tile:active { filter:brightness(.96); }
+  /* 农场 / 天猫：实心渐变（橙 / 红） */
+  .quick-tile-farm { background:linear-gradient(135deg,#ff5000,#ff7a29); color:#fff; box-shadow:0 6px 16px rgba(255,80,0,.26); }
+  .quick-tile-tm { background:linear-gradient(135deg,#e60012,#ff4d4d); color:#fff; box-shadow:0 6px 16px rgba(230,0,18,.22); }
+  .quick-tile-tm.done { background:linear-gradient(135deg,#16a34a,#22c55e); }
+  /* 肥料 / 点淘：浅底描边卡片（点击弹二维码） */
+  .quick-tile-fert { background:linear-gradient(135deg,#fff8f0,#ffffff); border-color:#fed7aa; color:var(--red); }
+  .quick-tile-dy { background:linear-gradient(135deg,#fff5f5,#ffffff); border-color:#fecaca; color:var(--red); }
+  .quick-tile-fert:hover, .quick-tile-dy:hover { border-color:var(--orange); box-shadow:0 4px 14px rgba(255,80,0,.12); }
+  .quick-tile-fert .quick-tile-tip, .quick-tile-dy .quick-tile-tip { color:var(--orange); }
+  .fert-box { max-width:min(92vw, 400px); }
+  .fert-box .modal-copy-btn { margin-top:14px; }
+  .fert-qrbox { display:block; box-sizing:border-box; margin:0 auto; background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px; }
+  .fert-qrbox svg { display:block; width:100%; height:auto; }
+  .farm-box { max-width:min(94vw, 460px); max-height:88vh; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-left:12px; padding-right:12px; }
+  .farm-tip { font-size:12px; color:var(--sub); margin-bottom:14px; }
+  .farm-loading { font-size:13px; color:var(--sub); padding:22px 0; }
+  .farm-item + .farm-item { margin-top:16px; padding-top:16px; border-top:1px dashed var(--line); }
+  .farm-name { font-size:14px; font-weight:700; color:var(--red); margin-bottom:8px; }
+  .farm-qrbox { display:block; width:100%; box-sizing:border-box; margin:0 auto; background:#fff; border:1px solid var(--line); border-radius:12px; padding:8px; }
+  .farm-qr { display:block; width:100%; height:auto; }
+  .hb-title { color:#d93025; }
+  .hb-block { flex:1 1 100%; }
+  .hb-qr-src { display:none; }
+  .hb-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; margin:2px 0 8px; }
+  .hb-copy-btn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:9px 8px; border:1px solid #f2cdc6; border-radius:9px; background:#fff5f2; color:#c0392b; font-family:inherit; font-size:13px; font-weight:700; line-height:1.35; text-align:center; cursor:pointer; }
+  .hb-copy-btn:hover { background:#ffe9e3; }
+  .hb-copy-btn:active { filter:brightness(.97); }
+  .hb-copy-btn .hb-sub { font-size:11px; font-weight:400; color:#8a8f99; }
+  .hb-copy-btn.done { background:#e8f7ec; border-color:#a9e0ba; color:#16a34a; }
+  .hb-copy-btn.done .hb-sub { color:#16a34a; }
+  .hb-note { font-size:12px; color:var(--sub); line-height:1.7; }
+  .hb-grid { display:flex; gap:8px; margin:2px 0 8px; flex-wrap:wrap; }
+  .hb-qr { width:80px; height:80px; border-radius:6px; border:1px solid var(--line); background:#fff; flex-shrink:0; }
+  /* 双11 红包口令卡片：跑马灯上方，2×2 网格的四个复制按钮 */
+  .d11-grid-card { padding:16px 20px; }
+  .d11-card-title { margin-bottom:10px; }
+  .d11-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .d11-copy-btn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:11px 8px; border:1px solid #f2cdc6; border-radius:9px; background:#fff5f2; color:#c0392b; font-family:inherit; font-size:14px; font-weight:700; line-height:1.35; text-align:center; cursor:pointer; }
+  .d11-copy-btn:hover { background:#ffe9e3; }
+  .d11-copy-btn:active { filter:brightness(.97); }
+  .d11-copy-btn .d11-sub { font-size:11px; font-weight:400; color:#8a8f99; }
+  .d11-copy-btn.done { background:#e8f7ec; border-color:#a9e0ba; color:#16a34a; }
+  .d11-copy-btn.done .d11-sub { color:#16a34a; }
+  .share-input { width:100%; min-height:74px; font-size:14px; line-height:1.6; padding:12px 14px; border:1px solid var(--line); border-radius:10px; resize:vertical; font-family:inherit; outline:none; color:var(--ink); }
+  .share-input:focus { border-color:var(--orange); }
+  .tabbar { display:flex; gap:8px; margin-bottom:16px; }
+  .tabbtn { flex:1; padding:11px 0; text-align:center; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); font-size:15px; font-weight:600; cursor:pointer; }
+  .tabbtn.active { background:var(--orange); border-color:var(--orange); color:#fff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card shop">
+    <div class="shop-row">
+    <button class="shop-copy-btn" id="shopCopyBtn" type="button">点击复制<br>打开淘宝直达乔克店铺首页</button>
+      <div class="shop-addr">若有朋友不想要又不想拿的小快递可以下这里<br>江苏省苏州市工业园区星湖街218号A4-303B【请放入一楼大厅303的指定箱中】猪八戒 15606256831</div>
+    </div>
+    <div class="shop-info">
+      <div class="shop-title">关注「乔克大叔的小卖铺」</div>
+    </div>
+    <div class="shop-divider"></div>
+    <div class="shop-info hb-block">
+      <div class="shop-title hb-title">领红包</div>
+            <div class="hb-grid">
+        <button class="hb-copy-btn" type="button"><span>签到红包</span><span class="hb-sub">点击复制 淘宝打开</span></button>
+        <button class="hb-copy-btn" type="button"><span>省钱购红包</span><span class="hb-sub">点击复制 淘宝打开</span></button>
+        <button class="hb-copy-btn" type="button"><span>福利购红包</span><span class="hb-sub">点击复制 淘宝打开</span></button>
+        <button class="hb-copy-btn" type="button"><span>秒杀红包</span><span class="hb-sub">点击复制 淘宝打开</span></button>
+        <button class="hb-copy-btn" type="button"><span>猫超省钱购红包</span><span class="hb-sub">点击复制 淘宝打开</span></button>
+        <button class="hb-copy-btn" type="button"><span>天喵超市福利红包</span><span class="hb-sub">点击复制 淘宝打开</span></button>
+        <button class="hb-copy-btn" type="button"><span>百亿补贴红包</span><span class="hb-sub">点击复制 淘宝打开</span></button>
+        <button class="hb-copy-btn" type="button" data-app="京东"><span>京东双11红包</span><span class="hb-sub">点击复制 京东打开</span></button>
+      </div>
+      <div class="hb-qr-src" id="hbQrSrc"></div>
+
+      <div class="hb-note">点按钮复制口令，再打开淘宝即可领取</div>
+    </div>
+  </div>
+
+  <div class="card d11-grid-card">
+    <div class="shop-title d11-card-title">双11 红包口令</div>
+    <div class="d11-grid">
+      <button class="d11-copy-btn" type="button">超级红包每天领<span class="d11-sub">复制 淘宝打开</span></button>
+      <button class="d11-copy-btn" type="button">购物车优惠<span class="d11-sub">复制 淘宝打开</span></button>
+      <button class="d11-copy-btn" type="button">U享限时红包<span class="d11-sub">复制 淘宝打开</span></button>
+      <button class="d11-copy-btn" type="button">快消限时红包<span class="d11-sub">复制 淘宝打开</span></button>
+    </div>
+  </div>
+
+  <div class="marquee" role="note" aria-label="百补6万2次 和秒杀6万2次共用次数，秒杀6万黑可走百补6万">
+    <div class="marquee-track">
+      <span class="marquee-item">百补6万2次 和秒杀6万2次共用次数，秒杀6万黑可走百补6万</span>
+      <span class="marquee-item">百补6万2次 和秒杀6万2次共用次数，秒杀6万黑可走百补6万</span>
+      <span class="marquee-item">百补6万2次 和秒杀6万2次共用次数，秒杀6万黑可走百补6万</span>
+      <span class="marquee-item">百补6万2次 和秒杀6万2次共用次数，秒杀6万黑可走百补6万</span>
+    </div>
+  </div>
+
+    <div class="tabbar" id="tabBar">
+    <button class="tabbtn active" data-tab="default" type="button">秒杀6万2次/秒杀5.7万</button>
+    <button class="tabbtn" data-tab="bb" type="button">百补6万2次/百补5.7万</button>
+  </div>
+
+  <div id="paneDefault">
+  <div class="meta" id="parseMeta">百补6万2次-秒杀6万2次(共用次数)，百补5.7万-秒杀5.7万，秒杀5.1万-秒杀4.3万</div>
+
+<div class="card" id="shareCard">
+    <div class="label">粘贴淘宝分享链接 / 分享文案，或直接输入商品 ID（纯数字）</div>
+    <textarea class="share-input" id="shareInput" placeholder="粘贴淘宝分享的那整段文字，或直接输入商品 ID（纯数字），例如：&#10;【淘宝】https://e.tb.cn/h.8xgLRivdBqTbqcy?tk=xxx CZ225 「商品标题」&#10;或者：123456789012&#10;点击链接直接打开 或者 淘宝搜索直接打开"></textarea>
+    <div class="btn-row">
+      <button class="btn primary" id="parseBtn">提取并生成</button>
+      <button class="btn" id="pasteBtn">读取剪贴板</button>
+      <button class="btn btn-clear" id="shareClearBtn">清空</button>
+    </div>
+    <div class="hint" id="shareHint"></div>
+  </div>
+
+  <input type="hidden" id="itemId" autocomplete="off">
+
+  <div id="qrlist"></div>
+
+  <div class="card" id="exportRow" style="display:none;">
+    <div class="btn-row">
+      <button class="btn primary" id="exportBtn">导出二维码长图（发群里扫）</button>
+    </div>
+    <div class="hint" id="exportHint"></div>
+    <div id="exportPreview"></div>
+  </div>
+  </div><!-- /paneDefault -->
+
+  <div id="paneBb13" style="display:none;">
+  <div class="card" id="bbPinCard">
+    <div class="label">百亿补贴 5.7万 · 粘贴一次，生成「5.7万」指定商品二维码</div>
+    <textarea class="share-input" id="bbPinInput" placeholder="把百亿补贴商品的分享文案整段粘进来，例如：&#10;【淘宝】https://c.tb.cn/h.xxxx?tk=xxx CZ007 「商品标题」&#10;点击链接直接打开 或者 淘宝搜索直接打开&#10;也可直接粘贴纯数字商品 ID"></textarea>
+    <div class="btn-row">
+      <button class="btn primary" id="bbPinParseBtn" type="button">解析并生成二维码</button>
+      <button class="btn" id="bbPinPasteBtn" type="button">读取剪贴板</button>
+      <button class="btn" id="bbPinClearBtn" type="button">清空</button>
+    </div>
+    <div class="hint" id="bbPinHint"></div>
+    <div id="bbPinResult" style="display:none;">
+      <div class="bb-item">
+        <div class="qr-label">百亿补贴 · 5.7万（指定商品）</div>
+        <div class="qr-box" id="bb57PinQr"></div>
+      </div>
+      <div class="tip">淘宝关注 <b style="color:var(--orange)">《乔克大叔的小卖铺》</b></div>
+    </div>
+  </div>
+
+  <div class="card" id="bb62Card">
+    <div class="label qr-label">百亿补贴 · 6万2次 · 与6万秒杀共用次数<span class="qr-label-note">不可指定</span></div>
+    <div class="qr-box" id="bb62QrBox"></div>
+    <div class="tip">固定入口码，与商品 ID 无关 · 手机淘宝「扫一扫」直接扫</div>
+    <div class="btn-row"><button class="btn" id="bb62OpenBtn" type="button">浏览器打开</button></div>
+  </div>
+  </div><!-- /paneBb13 -->
+
+  <!-- 底部四个入口：同一个模块内 2×2 排布（一排 2 个、共 2 排） -->
+  <div class="quick-module">
+    <div class="quick-grid">
+      <button class="quick-tile quick-tile-farm" id="farmOpenBtn" type="button">
+        <span class="quick-tile-main">农场丰收16万2次</span>
+        <span class="quick-tile-sub">猫卡10万入口</span>
+        <span class="quick-tile-tip">查看二维码 ›</span>
+      </button>
+      <button class="quick-tile quick-tile-fert" id="fertOpenBtn" type="button">
+        <span class="quick-tile-main">秒杀30万肥料玩法</span>
+        <span class="quick-tile-tip">查看二维码 ›</span>
+      </button>
+      <button class="quick-tile quick-tile-dy" id="dyOpenBtn" type="button">
+        <span class="quick-tile-main">点淘1元</span>
+        <span class="quick-tile-sub">攻略玩法看店铺黄金2包页面</span>
+        <span class="quick-tile-tip">查看二维码 ›</span>
+      </button>
+      <button class="quick-tile quick-tile-tm" id="tmCopyBtn" type="button">
+        <span class="quick-tile-main">天猫1元抵扣抽纸</span>
+        <span class="quick-tile-tip">点击复制 淘宝打开</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="card qq-foot">
+    <div class="qq-foot-title">交流 QQ 群</div>
+    <div class="shop-qq"><span>668994845</span><span>697945655</span><span>641265286</span><span>1093683030</span><span>1102056057</span><span>951754443</span><span>1058707673</span></div>
+  </div>
+</div>
+
+<!-- 双11红包弹窗（每次刷新页面弹出，可关闭；当前只有淘宝一条口令） -->
+<div class="modal-mask hide" id="d11Mask">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-label="双11红包">
+    <button class="modal-close" id="d11Close" type="button" aria-label="关闭">&times;</button>
+    <div class="modal-tag">限时福利</div>
+    <div class="modal-title" id="d11Title">双11红包</div>
+    <div class="modal-sub" id="d11Sub">复制口令，打开淘宝即可领取</div>
+    <button class="modal-copy-btn" id="d11CopyBtn" type="button">复制口令 淘宝打开</button>
+  </div>
+</div>
+
+<!-- 农场 / 猫卡 三个固定入口弹窗（点底部通栏按钮打开；二维码首次打开时才生成） -->
+<div class="modal-mask hide" id="farmMask">
+  <div class="modal-box farm-box" role="dialog" aria-modal="true" aria-label="农场 猫卡 固定入口">
+    <button class="modal-close" id="farmClose" type="button" aria-label="关闭">&times;</button>
+    <div class="modal-title">农场 / 猫卡 固定入口</div>
+    <div class="farm-tip">用手机淘宝「扫一扫」对应二维码</div>
+    <div id="farmQrList"><div class="farm-loading" id="farmLoading">二维码生成中…</div></div>
+  </div>
+</div>
+
+<!-- 秒杀30万肥料玩法弹窗（单张固定码，首次打开时才生成） -->
+<div class="modal-mask hide" id="fertMask">
+  <div class="modal-box fert-box" role="dialog" aria-modal="true" aria-label="秒杀30万肥料玩法">
+    <button class="modal-close" id="fertClose" type="button" aria-label="关闭">&times;</button>
+    <div class="modal-title">秒杀30万肥料玩法</div>
+    <div class="farm-tip">用手机淘宝「扫一扫」下方二维码</div>
+    <div class="fert-qrbox" id="fertQrBox"></div>
+  </div>
+</div>
+<!-- 点淘1元 攻略玩法弹窗（单张固定码，首次打开时才生成；口令含中文，走 UTF-8 编码） -->
+<div class="modal-mask hide" id="dyMask">
+  <div class="modal-box fert-box" role="dialog" aria-modal="true" aria-label="点淘1元 攻略玩法">
+    <button class="modal-close" id="dyClose" type="button" aria-label="关闭">&times;</button>
+    <div class="modal-title">点淘1元 攻略玩法</div>
+    <div class="farm-tip">用手机淘宝 / 点淘「扫一扫」下方二维码</div>
+    <div class="fert-qrbox" id="dyQrBox"></div>
+    <button class="modal-copy-btn" id="dyCopyBtn" type="button">复制口令 点淘打开</button>
+  </div>
+</div>
+<script>
+//---------------------------------------------------------------------
+//
+// QR Code Generator for JavaScript
+//
+// Copyright (c) 2009 Kazuhiko Arase
+//
+// URL: http://www.d-project.com/
+//
+// Licensed under the MIT license:
+//  http://www.opensource.org/licenses/mit-license.php
+//
+// The word 'QR Code' is registered trademark of
+// DENSO WAVE INCORPORATED
+//  http://www.denso-wave.com/qrcode/faqpatent-e.html
+//
+//---------------------------------------------------------------------
+
+//---------------------------------------------------------------------
+// 水印工具（二维码中央铺一块白底 + 红字，不改动二维码模块本身）
+//   · 水印只画在非静默区之上，定位图案（三个角）与静默区不受影响
+//   · 底块 46% 宽 × 17% 高，居中（QR 中央 logo 的标准做法）
+//   · SVG 版：wmSvg()；GIF 像素版：wmPix()（用点阵描点写字，不依赖任何字体引擎）
+//   · 长图导出（canvas）版：drawWmCanvas()
+//---------------------------------------------------------------------
+
+var WM_TEXT = 'TB关注乔克大叔的小卖铺';
+
+// ⚠️ 必须用 Q 级纠错（ECL 不能降回 M）：
+//   · M 级只有约 15% 冗余，中央铺一块带字白底会形成连续空洞 → 实测 jsQR 直接识别失败
+//   · H 级冗余最多（30%），但 QR v40 只装 1273 字节，装不下农场「10万猫卡入口2」那条
+//     1327 字符的超长链（会抛 code length overflow）
+//   · Q 级是唯一能覆盖全部 19 条链接、又留足冗余的等级
+//   配合 46%x17% 的水印块（约覆盖 5~7% 面积），实测 19/19 全部可正常扫出。
+var WM_ECL = 'Q';
+var WM_W = 0.52;   // 水印底块宽 / 二维码边长
+var WM_H = 0.18;   // 水印底块高 / 二维码边长
+
+// 5x7 点阵字形（纯英文大写，数字序）
+var WM_FONT_MAP = {
+  'A':['01110','10001','10001','11111','10001','10001','10001'],
+  'B':['11110','10001','10001','11110','10001','10001','11110'],
+  'C':['01110','10001','10000','10000','10000','10001','01110'],
+  'D':['11110','10001','10001','10001','10001','10001','11110'],
+  'E':['11111','10000','10000','11110','10000','10000','11111'],
+  'F':['11111','10000','10000','11110','10000','10000','10000'],
+  'G':['01110','10001','10000','10111','10001','10001','01111'],
+  'H':['10001','10001','10001','11111','10001','10001','10001'],
+  'I':['11111','00100','00100','00100','00100','00100','11111'],
+  'J':['00111','00010','00010','00010','00010','10010','01100'],
+  'K':['10001','10010','10100','11000','10100','10010','10001'],
+  'L':['10000','10000','10000','10000','10000','10000','11111'],
+  'M':['10001','11011','10101','10101','10001','10001','10001'],
+  'N':['10001','10001','11001','10101','10011','10001','10001'],
+  'O':['01110','10001','10001','10001','10001','10001','01110'],
+  'P':['11110','10001','10001','11110','10000','10000','10000'],
+  'Q':['01110','10001','10001','10001','10101','10010','01101'],
+  'R':['11110','10001','10001','11110','10100','10010','10001'],
+  'S':['01111','10000','10000','01110','00001','00001','11110'],
+  'T':['11111','00100','00100','00100','00100','00100','00100'],
+  'U':['10001','10001','10001','10001','10001','10001','01110'],
+  'V':['10001','10001','10001','10001','10001','01010','00100'],
+  'W':['10001','10001','10001','10101','10101','11011','10001'],
+  'X':['10001','10001','01010','00100','01010','10001','10001'],
+  'Y':['10001','10001','01010','00100','00100','00100','00100'],
+  'Z':['11111','00001','00010','00100','01000','10000','11111'],
+  '0':['01110','10001','10011','10101','11001','10001','01110'],
+  '1':['00100','01100','00100','00100','00100','00100','01110'],
+  '2':['01110','10001','00001','00010','00100','01000','11111'],
+  '3':['11111','00010','00100','00010','00001','10001','01110'],
+  '4':['00010','00110','01010','10010','11111','00010','00010'],
+  '5':['11111','10000','11110','00001','00001','10001','01110'],
+  '6':['00110','01000','10000','11110','10001','10001','01110'],
+  '7':['11111','00001','00010','00100','01000','01000','01000'],
+  '8':['01110','10001','10001','01110','10001','10001','01110'],
+  '9':['01110','10001','10001','01111','00001','00010','01100'],
+  ' ':['00000','00000','00000','00000','00000','00000','00000'],
+  '.':['00000','00000','00000','00000','00000','00000','00100'],
+  '-':['00000','00000','00000','11111','00000','00000','00000'],
+  '-':['00000','00000','00000','11111','00000','00000','00000']
+};
+
+// GIF 端可渲染串：中文没有点阵字模，整串降级为「TB QIAOKE STORE」——
+// 比留一串「····」可读，也与「TB关注乔克大叔的小卖铺」同义（乔克大叔的小卖铺 = QIAOKE STORE）。
+// 页面内的 SVG 码仍是完整中文原样。
+var WM_ASCII = 'TB QIAOKE STORE';
+
+function wmAscii(str){
+  var s = (str || ''), out = '', i, ch, hit = false;
+  for (i = 0; i < s.length; i++){ if (s.charCodeAt(i) > 127) { hit = true; break; } }
+  if (hit) return WM_ASCII;
+  for (i = 0; i < s.length; i++){
+    ch = s.charAt(i).toUpperCase();
+    out += WM_FONT_MAP[ch] ? ch : ' ';
+  }
+  return out;
+}
+
+// 简易 XML 转义（与 qrcode 库内部 escapeXml 行为一致；水印文字只含中文/字母/数字，基本用不到，但防患于未然）
+function wmEscapeXml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+
+// SVG 版水印片段（size = 二维码边长；cellSize 用于换算字号与描边粗细）
+function wmSvg(size, cellSize, wm){
+  var text = wm.text || WM_TEXT;
+  var bw = size * (wm.w || WM_W);
+  var bh = size * (wm.h || WM_H);
+  var bx = (size - bw) / 2;
+  var by = (size - bh) / 2;
+  var fs = size * (wm.scale || 0.112);
+  var tw = text.length * fs * 0.9;
+  var maxW = bw * 0.92;
+  if (tw > maxW){ fs = fs * (maxW / tw); tw = maxW; }
+  var cy = by + bh / 2;
+  var color = wm.color || '#c0392b';
+  return '<rect x="' + bx + '" y="' + by + '" width="' + bw + '" height="' + bh +
+    '" rx="' + (bh * 0.14) + '" fill="#ffffff" fill-opacity="0.94" stroke="#d8d8d8" stroke-width="' + (cellSize * 0.12) + '"/>' +
+    '<text x="' + (size / 2) + '" y="' + cy + '" fill="' + color + '" font-size="' + fs +
+    '" font-weight="700" text-anchor="middle" dominant-baseline="central" ' +
+    'font-family="-apple-system,BlinkMacSystemFont,\'PingFang SC\',\'Microsoft YaHei\',sans-serif">' +
+    wmEscapeXml(text) + '</text>';
+}
+
+// 长图导出版水印（canvas 直接画，与页面内 SVG/GIF 版视觉一致）
+// qx/qy = 二维码模块区左上角（不含静默区），codeSize = 模块区边长（n * cellSize）
+// ⚠️ 本函数定义在第一个 <script> 的顶层，只能拿到全局变量。长图那个 IIFE 里的
+//    LONG_FONT / SHOP_NAME 都是局部 var，这里引用会抛 ReferenceError（2026-10-17 踩过一次：
+//    点「导出二维码长图」后按钮一直卡在「正在生成长图…」，就是这个错）。
+//    所以字体串必须自带，别改回去复用 LONG_FONT。
+function drawWmCanvas(ctx, qx, qy, codeSize, cellSize){
+  var WM_CANVAS_FONT = '"PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,sans-serif';
+  var text = WM_TEXT;
+  var bw = Math.round(codeSize * WM_W);
+  var bh = Math.round(codeSize * WM_H);
+  var bx = Math.round(qx + (codeSize - bw) / 2);
+  var by = Math.round(qy + (codeSize - bh) / 2);
+
+  ctx.save();
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(bx, by, bw, bh, Math.max(2, bh * 0.14));
+  } else {
+    ctx.rect(bx, by, bw, bh);
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.94)';
+  ctx.fill();
+  ctx.strokeStyle = '#d8d8d8';
+  ctx.lineWidth = Math.max(1, cellSize * 0.12);
+  ctx.stroke();
+
+  var fs = Math.round(bh * 0.52);
+  ctx.fillStyle = '#c0392b';
+  ctx.font = 'bold ' + Math.max(1, fs) + 'px ' + WM_CANVAS_FONT;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  var tw = ctx.measureText(text).width;
+  var maxW = bw * 0.9;
+  if (tw > maxW){
+    // ⚠️ 不能设「最小 8px」之类的下限：小码（如 29 模块的百亿补贴）块高只有十几像素，
+    //    8px 的红字会溢出水印块、直接盖到模块上，把整张码弄到扫不出来。
+    //    按「实测宽度 / 可用宽度」一次性换算到恰好放下，下限只保 3px。
+    fs = Math.max(3, Math.floor(fs * maxW / tw));
+    ctx.font = 'bold ' + fs + 'px ' + WM_CANVAS_FONT;
+  }
+  ctx.fillText(text, bx + bw / 2, by + bh / 2 + 1);
+  ctx.restore();
+}
+
+// GIF 像素版水印（返回 0=黑 / 1=白 / -1=不覆盖，交给二维码数据）
+// 用 5x7 点阵逐像素描字，不依赖任何字体引擎，WebView / node 结果完全一致
+function wmPix(size, x, y, wm){
+  var bw = Math.round(size * (wm.w || WM_W));
+  var bh = Math.round(size * (wm.h || WM_H));
+  var bx = Math.round((size - bw) / 2);
+  var by = Math.round((size - bh) / 2);
+  if (x < bx || x >= bx + bw || y < by || y >= by + bh) return -1;
+
+  var bx2 = bx + bw - 1, by2 = by + bh - 1;
+  // 圆角裁切（半径 = 高度 14%）
+  var rad = Math.max(1, Math.round(bh * 0.14));
+  var dx = 0, dy = 0, cx, cy;
+  if (x < bx + rad && y < by + rad) { cx = bx + rad; cy = by + rad; dx = cx - x; dy = cy - y; }
+  else if (x > bx2 - rad && y < by + rad) { cx = bx2 - rad; cy = by + rad; dx = x - cx; dy = cy - y; }
+  else if (x < bx + rad && y > by2 - rad) { cx = bx + rad; cy = by2 - rad; dx = cx - x; dy = y - cy; }
+  else if (x > bx2 - rad && y > by2 - rad) { cx = bx2 - rad; cy = by2 - rad; dx = x - cx; dy = y - cy; }
+  if (dx || dy) { if (dx * dx + dy * dy > rad * rad) return -1; }
+
+  // 边框（1px 灰线）
+  if (x === bx || x === bx2 || y === by || y === by2) return 1;
+
+  // 与 SVG 文字区域保持一致：文字可用宽 = 底块宽 92%，5x7 字模 + 1 列字距
+  var maxTextW = bw * 0.92;
+  var str = wmAscii(wm.text || WM_TEXT);
+  var chars = str.length;
+  if (!chars) return 1;
+  // 先按「高 = 底块高 46%」定初始像素块，再按宽度收缩；仍放不下就分两行
+  var px = Math.max(1, Math.round((bh * 0.46) / 7));
+  var need = chars * (5 * px + px);
+  var lines = 1;
+  if (need > maxTextW) {
+    px = Math.max(1, Math.floor(maxTextW / (chars * 6)));
+    // px=1 还放不下 → 拆两行（奇数长度时前半行多一个字符）
+    if (chars * 6 - 1 > maxTextW) {
+      lines = 2;
+      var per = Math.ceil(chars / 2);
+      var line1 = str.slice(0, per), line2 = str.slice(per);
+      // 两行时每行字块按可用高的一半重算
+      var px2 = Math.max(1, Math.floor((maxTextW) / (per * 6)));
+      if (px2 < px) px = px2;
+      var lh = 7 * px;
+      var gapY = px;
+      var ty2 = Math.round((size - (lh * 2 + gapY)) / 2);
+      // 判断落在哪一行
+      if (y < ty2 || y >= ty2 + lh * 2 + gapY) return 1;
+      var li = y >= ty2 + lh + gapY ? 1 : 0;
+      var lstr = li === 0 ? line1 : line2;
+      var lw = lstr.length * (5 * px + px) - px;
+      var ltx = Math.round((size - lw) / 2);
+      if (x < ltx || x >= ltx + lw) return 1;
+      var lidx = Math.floor((x - ltx) / (5 * px + px));
+      var lrem = (x - ltx) - lidx * (5 * px + px);
+      if (lidx >= lstr.length || lrem >= 5 * px) return 1;
+      var lrows = WM_FONT_MAP[lstr.charAt(lidx)];
+      if (!lrows) return 1;
+      var lrow = rows2line(lrows, li === 0 ? (y - ty2) : (y - ty2 - lh - gapY), px);
+      if (lrow === null) return 1;
+      return lrow.charAt(Math.floor(lrem / px)) === '1' ? 0 : 1;
+    }
+  }
+  var glyphW = 5 * px, glyphH = 7 * px, gap = px;
+  var textW = chars * (glyphW + gap) - gap;
+  var tx = Math.round((size - textW) / 2);
+  var ty = Math.round((size - glyphH) / 2);
+
+  if (x < tx || y < ty || x >= tx + textW || y >= ty + glyphH) return 1;
+  var idx = Math.floor((x - tx) / (glyphW + gap));
+  var rem = (x - tx) - idx * (glyphW + gap);
+  if (idx >= chars || rem >= glyphW) return 1;
+  var rows = WM_FONT_MAP[str.charAt(idx)];
+  if (!rows) return 1;
+  var row = rows[Math.floor((y - ty) / px)];
+  if (!row) return 1;
+  return row.charAt(Math.floor(rem / px)) === '1' ? 0 : 1;
+}
+
+// 两行布局时按行内 y 计算对应字模行（yIn = 行内偏移）
+function rows2line(rows, yIn, px){
+  var ri = Math.floor(yIn / px);
+  if (ri < 0 || ri > 6) return null;
+  return rows[ri] || null;
+}
+
+var qrcode = function() {
+
+  //---------------------------------------------------------------------
+  // qrcode
+  //---------------------------------------------------------------------
+
+  /**
+   * qrcode
+   * @param typeNumber 1 to 40
+   * @param errorCorrectionLevel 'L','M','Q','H'
+   */
+  var qrcode = function(typeNumber, errorCorrectionLevel) {
+
+    var PAD0 = 0xEC;
+    var PAD1 = 0x11;
+
+    var _typeNumber = typeNumber;
+    var _errorCorrectionLevel = QRErrorCorrectionLevel[errorCorrectionLevel];
+    var _modules = null;
+    var _moduleCount = 0;
+    var _dataCache = null;
+    var _dataList = [];
+
+    var _this = {};
+
+    var makeImpl = function(test, maskPattern) {
+
+      _moduleCount = _typeNumber * 4 + 17;
+      _modules = function(moduleCount) {
+        var modules = new Array(moduleCount);
+        for (var row = 0; row < moduleCount; row += 1) {
+          modules[row] = new Array(moduleCount);
+          for (var col = 0; col < moduleCount; col += 1) {
+            modules[row][col] = null;
+          }
+        }
+        return modules;
+      }(_moduleCount);
+
+      setupPositionProbePattern(0, 0);
+      setupPositionProbePattern(_moduleCount - 7, 0);
+      setupPositionProbePattern(0, _moduleCount - 7);
+      setupPositionAdjustPattern();
+      setupTimingPattern();
+      setupTypeInfo(test, maskPattern);
+
+      if (_typeNumber >= 7) {
+        setupTypeNumber(test);
+      }
+
+      if (_dataCache == null) {
+        _dataCache = createData(_typeNumber, _errorCorrectionLevel, _dataList);
+      }
+
+      mapData(_dataCache, maskPattern);
+    };
+
+    var setupPositionProbePattern = function(row, col) {
+
+      for (var r = -1; r <= 7; r += 1) {
+
+        if (row + r <= -1 || _moduleCount <= row + r) continue;
+
+        for (var c = -1; c <= 7; c += 1) {
+
+          if (col + c <= -1 || _moduleCount <= col + c) continue;
+
+          if ( (0 <= r && r <= 6 && (c == 0 || c == 6) )
+              || (0 <= c && c <= 6 && (r == 0 || r == 6) )
+              || (2 <= r && r <= 4 && 2 <= c && c <= 4) ) {
+            _modules[row + r][col + c] = true;
+          } else {
+            _modules[row + r][col + c] = false;
+          }
+        }
+      }
+    };
+
+    var getBestMaskPattern = function() {
+
+      var minLostPoint = 0;
+      var pattern = 0;
+
+      for (var i = 0; i < 8; i += 1) {
+
+        makeImpl(true, i);
+
+        var lostPoint = QRUtil.getLostPoint(_this);
+
+        if (i == 0 || minLostPoint > lostPoint) {
+          minLostPoint = lostPoint;
+          pattern = i;
+        }
+      }
+
+      return pattern;
+    };
+
+    var setupTimingPattern = function() {
+
+      for (var r = 8; r < _moduleCount - 8; r += 1) {
+        if (_modules[r][6] != null) {
+          continue;
+        }
+        _modules[r][6] = (r % 2 == 0);
+      }
+
+      for (var c = 8; c < _moduleCount - 8; c += 1) {
+        if (_modules[6][c] != null) {
+          continue;
+        }
+        _modules[6][c] = (c % 2 == 0);
+      }
+    };
+
+    var setupPositionAdjustPattern = function() {
+
+      var pos = QRUtil.getPatternPosition(_typeNumber);
+
+      for (var i = 0; i < pos.length; i += 1) {
+
+        for (var j = 0; j < pos.length; j += 1) {
+
+          var row = pos[i];
+          var col = pos[j];
+
+          if (_modules[row][col] != null) {
+            continue;
+          }
+
+          for (var r = -2; r <= 2; r += 1) {
+
+            for (var c = -2; c <= 2; c += 1) {
+
+              if (r == -2 || r == 2 || c == -2 || c == 2
+                  || (r == 0 && c == 0) ) {
+                _modules[row + r][col + c] = true;
+              } else {
+                _modules[row + r][col + c] = false;
+              }
+            }
+          }
+        }
+      }
+    };
+
+    var setupTypeNumber = function(test) {
+
+      var bits = QRUtil.getBCHTypeNumber(_typeNumber);
+
+      for (var i = 0; i < 18; i += 1) {
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+        _modules[Math.floor(i / 3)][i % 3 + _moduleCount - 8 - 3] = mod;
+      }
+
+      for (var i = 0; i < 18; i += 1) {
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+        _modules[i % 3 + _moduleCount - 8 - 3][Math.floor(i / 3)] = mod;
+      }
+    };
+
+    var setupTypeInfo = function(test, maskPattern) {
+
+      var data = (_errorCorrectionLevel << 3) | maskPattern;
+      var bits = QRUtil.getBCHTypeInfo(data);
+
+      // vertical
+      for (var i = 0; i < 15; i += 1) {
+
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+
+        if (i < 6) {
+          _modules[i][8] = mod;
+        } else if (i < 8) {
+          _modules[i + 1][8] = mod;
+        } else {
+          _modules[_moduleCount - 15 + i][8] = mod;
+        }
+      }
+
+      // horizontal
+      for (var i = 0; i < 15; i += 1) {
+
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+
+        if (i < 8) {
+          _modules[8][_moduleCount - i - 1] = mod;
+        } else if (i < 9) {
+          _modules[8][15 - i - 1 + 1] = mod;
+        } else {
+          _modules[8][15 - i - 1] = mod;
+        }
+      }
+
+      // fixed module
+      _modules[_moduleCount - 8][8] = (!test);
+    };
+
+    var mapData = function(data, maskPattern) {
+
+      var inc = -1;
+      var row = _moduleCount - 1;
+      var bitIndex = 7;
+      var byteIndex = 0;
+      var maskFunc = QRUtil.getMaskFunction(maskPattern);
+
+      for (var col = _moduleCount - 1; col > 0; col -= 2) {
+
+        if (col == 6) col -= 1;
+
+        while (true) {
+
+          for (var c = 0; c < 2; c += 1) {
+
+            if (_modules[row][col - c] == null) {
+
+              var dark = false;
+
+              if (byteIndex < data.length) {
+                dark = ( ( (data[byteIndex] >>> bitIndex) & 1) == 1);
+              }
+
+              var mask = maskFunc(row, col - c);
+
+              if (mask) {
+                dark = !dark;
+              }
+
+              _modules[row][col - c] = dark;
+              bitIndex -= 1;
+
+              if (bitIndex == -1) {
+                byteIndex += 1;
+                bitIndex = 7;
+              }
+            }
+          }
+
+          row += inc;
+
+          if (row < 0 || _moduleCount <= row) {
+            row -= inc;
+            inc = -inc;
+            break;
+          }
+        }
+      }
+    };
+
+    var createBytes = function(buffer, rsBlocks) {
+
+      var offset = 0;
+
+      var maxDcCount = 0;
+      var maxEcCount = 0;
+
+      var dcdata = new Array(rsBlocks.length);
+      var ecdata = new Array(rsBlocks.length);
+
+      for (var r = 0; r < rsBlocks.length; r += 1) {
+
+        var dcCount = rsBlocks[r].dataCount;
+        var ecCount = rsBlocks[r].totalCount - dcCount;
+
+        maxDcCount = Math.max(maxDcCount, dcCount);
+        maxEcCount = Math.max(maxEcCount, ecCount);
+
+        dcdata[r] = new Array(dcCount);
+
+        for (var i = 0; i < dcdata[r].length; i += 1) {
+          dcdata[r][i] = 0xff & buffer.getBuffer()[i + offset];
+        }
+        offset += dcCount;
+
+        var rsPoly = QRUtil.getErrorCorrectPolynomial(ecCount);
+        var rawPoly = qrPolynomial(dcdata[r], rsPoly.getLength() - 1);
+
+        var modPoly = rawPoly.mod(rsPoly);
+        ecdata[r] = new Array(rsPoly.getLength() - 1);
+        for (var i = 0; i < ecdata[r].length; i += 1) {
+          var modIndex = i + modPoly.getLength() - ecdata[r].length;
+          ecdata[r][i] = (modIndex >= 0)? modPoly.getAt(modIndex) : 0;
+        }
+      }
+
+      var totalCodeCount = 0;
+      for (var i = 0; i < rsBlocks.length; i += 1) {
+        totalCodeCount += rsBlocks[i].totalCount;
+      }
+
+      var data = new Array(totalCodeCount);
+      var index = 0;
+
+      for (var i = 0; i < maxDcCount; i += 1) {
+        for (var r = 0; r < rsBlocks.length; r += 1) {
+          if (i < dcdata[r].length) {
+            data[index] = dcdata[r][i];
+            index += 1;
+          }
+        }
+      }
+
+      for (var i = 0; i < maxEcCount; i += 1) {
+        for (var r = 0; r < rsBlocks.length; r += 1) {
+          if (i < ecdata[r].length) {
+            data[index] = ecdata[r][i];
+            index += 1;
+          }
+        }
+      }
+
+      return data;
+    };
+
+    var createData = function(typeNumber, errorCorrectionLevel, dataList) {
+
+      var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, errorCorrectionLevel);
+
+      var buffer = qrBitBuffer();
+
+      for (var i = 0; i < dataList.length; i += 1) {
+        var data = dataList[i];
+        buffer.put(data.getMode(), 4);
+        buffer.put(data.getLength(), QRUtil.getLengthInBits(data.getMode(), typeNumber) );
+        data.write(buffer);
+      }
+
+      // calc num max data.
+      var totalDataCount = 0;
+      for (var i = 0; i < rsBlocks.length; i += 1) {
+        totalDataCount += rsBlocks[i].dataCount;
+      }
+
+      if (buffer.getLengthInBits() > totalDataCount * 8) {
+        throw 'code length overflow. ('
+          + buffer.getLengthInBits()
+          + '>'
+          + totalDataCount * 8
+          + ')';
+      }
+
+      // end code
+      if (buffer.getLengthInBits() + 4 <= totalDataCount * 8) {
+        buffer.put(0, 4);
+      }
+
+      // padding
+      while (buffer.getLengthInBits() % 8 != 0) {
+        buffer.putBit(false);
+      }
+
+      // padding
+      while (true) {
+
+        if (buffer.getLengthInBits() >= totalDataCount * 8) {
+          break;
+        }
+        buffer.put(PAD0, 8);
+
+        if (buffer.getLengthInBits() >= totalDataCount * 8) {
+          break;
+        }
+        buffer.put(PAD1, 8);
+      }
+
+      return createBytes(buffer, rsBlocks);
+    };
+
+    _this.addData = function(data, mode) {
+
+      mode = mode || 'Byte';
+
+      var newData = null;
+
+      switch(mode) {
+      case 'Numeric' :
+        newData = qrNumber(data);
+        break;
+      case 'Alphanumeric' :
+        newData = qrAlphaNum(data);
+        break;
+      case 'Byte' :
+        newData = qr8BitByte(data);
+        break;
+      case 'Kanji' :
+        newData = qrKanji(data);
+        break;
+      default :
+        throw 'mode:' + mode;
+      }
+
+      _dataList.push(newData);
+      _dataCache = null;
+    };
+
+    _this.isDark = function(row, col) {
+      if (row < 0 || _moduleCount <= row || col < 0 || _moduleCount <= col) {
+        throw row + ',' + col;
+      }
+      return _modules[row][col];
+    };
+
+    _this.getModuleCount = function() {
+      return _moduleCount;
+    };
+
+    _this.make = function() {
+      if (_typeNumber < 1) {
+        var typeNumber = 1;
+
+        for (; typeNumber < 40; typeNumber++) {
+          var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, _errorCorrectionLevel);
+          var buffer = qrBitBuffer();
+
+          for (var i = 0; i < _dataList.length; i++) {
+            var data = _dataList[i];
+            buffer.put(data.getMode(), 4);
+            buffer.put(data.getLength(), QRUtil.getLengthInBits(data.getMode(), typeNumber) );
+            data.write(buffer);
+          }
+
+          var totalDataCount = 0;
+          for (var i = 0; i < rsBlocks.length; i++) {
+            totalDataCount += rsBlocks[i].dataCount;
+          }
+
+          if (buffer.getLengthInBits() <= totalDataCount * 8) {
+            break;
+          }
+        }
+
+        _typeNumber = typeNumber;
+      }
+
+      makeImpl(false, getBestMaskPattern() );
+    };
+
+    _this.createTableTag = function(cellSize, margin) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var qrHtml = '';
+
+      qrHtml += '<table style="';
+      qrHtml += ' border-width: 0px; border-style: none;';
+      qrHtml += ' border-collapse: collapse;';
+      qrHtml += ' padding: 0px; margin: ' + margin + 'px;';
+      qrHtml += '">';
+      qrHtml += '<tbody>';
+
+      for (var r = 0; r < _this.getModuleCount(); r += 1) {
+
+        qrHtml += '<tr>';
+
+        for (var c = 0; c < _this.getModuleCount(); c += 1) {
+          qrHtml += '<td style="';
+          qrHtml += ' border-width: 0px; border-style: none;';
+          qrHtml += ' border-collapse: collapse;';
+          qrHtml += ' padding: 0px; margin: 0px;';
+          qrHtml += ' width: ' + cellSize + 'px;';
+          qrHtml += ' height: ' + cellSize + 'px;';
+          qrHtml += ' background-color: ';
+          qrHtml += _this.isDark(r, c)? '#000000' : '#ffffff';
+          qrHtml += ';';
+          qrHtml += '"/>';
+        }
+
+        qrHtml += '</tr>';
+      }
+
+      qrHtml += '</tbody>';
+      qrHtml += '</table>';
+
+      return qrHtml;
+    };
+
+    _this.createSvgTag = function(cellSize, margin, alt, title, wm) {
+
+      var opts = {};
+      if (typeof arguments[0] == 'object') {
+        // Called by options.
+        opts = arguments[0];
+        // overwrite cellSize and margin.
+        cellSize = opts.cellSize;
+        margin = opts.margin;
+        alt = opts.alt;
+        title = opts.title;
+        // 水印：{ text:'...', scale:0.8, w:0.56, h:0.22, color:'#c0392b' }
+        wm = opts.wm;
+      }
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      // Compose alt property surrogate
+      alt = (typeof alt === 'string') ? {text: alt} : alt || {};
+      alt.text = alt.text || null;
+      alt.id = (alt.text) ? alt.id || 'qrcode-description' : null;
+
+      // Compose title property surrogate
+      title = (typeof title === 'string') ? {text: title} : title || {};
+      title.text = title.text || null;
+      title.id = (title.text) ? title.id || 'qrcode-title' : null;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var c, mc, r, mr, qrSvg='', rect;
+
+      rect = 'l' + cellSize + ',0 0,' + cellSize +
+        ' -' + cellSize + ',0 0,-' + cellSize + 'z ';
+
+      qrSvg += '<svg version="1.1" xmlns="http://www.w3.org/2000/svg"';
+      qrSvg += !opts.scalable ? ' width="' + size + 'px" height="' + size + 'px"' : '';
+      qrSvg += ' viewBox="0 0 ' + size + ' ' + size + '" ';
+      qrSvg += ' preserveAspectRatio="xMinYMin meet"';
+      qrSvg += (title.text || alt.text) ? ' role="img" aria-labelledby="' +
+          escapeXml([title.id, alt.id].join(' ').trim() ) + '"' : '';
+      qrSvg += '>';
+      qrSvg += (title.text) ? '<title id="' + escapeXml(title.id) + '">' +
+          escapeXml(title.text) + '</title>' : '';
+      qrSvg += (alt.text) ? '<description id="' + escapeXml(alt.id) + '">' +
+          escapeXml(alt.text) + '</description>' : '';
+      qrSvg += '<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>';
+      qrSvg += '<path d="';
+
+      for (r = 0; r < _this.getModuleCount(); r += 1) {
+        mr = r * cellSize + margin;
+        for (c = 0; c < _this.getModuleCount(); c += 1) {
+          if (_this.isDark(r, c) ) {
+            mc = c*cellSize+margin;
+            qrSvg += 'M' + mc + ',' + mr + rect;
+          }
+        }
+      }
+
+      qrSvg += '" stroke="transparent" fill="black"/>';
+      if (wm && wm.text) qrSvg += wmSvg(size, cellSize, wm);
+      qrSvg += '</svg>';
+
+      return qrSvg;
+    };
+
+    _this.createDataURL = function(cellSize, margin, wm) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      return createDataURL(size, size, function(x, y) {
+        if (wm && wm.text) {
+          var wp = wmPix(size, x, y, wm);
+          if (wp !== -1) return wp;
+        }
+        if (min <= x && x < max && min <= y && y < max) {
+          var c = Math.floor( (x - min) / cellSize);
+          var r = Math.floor( (y - min) / cellSize);
+          return _this.isDark(r, c)? 0 : 1;
+        } else {
+          return 1;
+        }
+      } );
+    };
+
+    _this.createImgTag = function(cellSize, margin, alt) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+
+      var img = '';
+      img += '<img';
+      img += '\u0020src="';
+      img += _this.createDataURL(cellSize, margin);
+      img += '"';
+      img += '\u0020width="';
+      img += size;
+      img += '"';
+      img += '\u0020height="';
+      img += size;
+      img += '"';
+      if (alt) {
+        img += '\u0020alt="';
+        img += escapeXml(alt);
+        img += '"';
+      }
+      img += '/>';
+
+      return img;
+    };
+
+    var escapeXml = function(s) {
+      var escaped = '';
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charAt(i);
+        switch(c) {
+        case '<': escaped += '&lt;'; break;
+        case '>': escaped += '&gt;'; break;
+        case '&': escaped += '&amp;'; break;
+        case '"': escaped += '&quot;'; break;
+        default : escaped += c; break;
+        }
+      }
+      return escaped;
+    };
+
+    var _createHalfASCII = function(margin) {
+      var cellSize = 1;
+      margin = (typeof margin == 'undefined')? cellSize * 2 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      var y, x, r1, r2, p;
+
+      var blocks = {
+        '██': '█',
+        '█ ': '▀',
+        ' █': '▄',
+        '  ': ' '
+      };
+
+      var blocksLastLineNoMargin = {
+        '██': '▀',
+        '█ ': '▀',
+        ' █': ' ',
+        '  ': ' '
+      };
+
+      var ascii = '';
+      for (y = 0; y < size; y += 2) {
+        r1 = Math.floor((y - min) / cellSize);
+        r2 = Math.floor((y + 1 - min) / cellSize);
+        for (x = 0; x < size; x += 1) {
+          p = '█';
+
+          if (min <= x && x < max && min <= y && y < max && _this.isDark(r1, Math.floor((x - min) / cellSize))) {
+            p = ' ';
+          }
+
+          if (min <= x && x < max && min <= y+1 && y+1 < max && _this.isDark(r2, Math.floor((x - min) / cellSize))) {
+            p += ' ';
+          }
+          else {
+            p += '█';
+          }
+
+          // Output 2 characters per pixel, to create full square. 1 character per pixels gives only half width of square.
+          ascii += (margin < 1 && y+1 >= max) ? blocksLastLineNoMargin[p] : blocks[p];
+        }
+
+        ascii += '\n';
+      }
+
+      if (size % 2 && margin > 0) {
+        return ascii.substring(0, ascii.length - size - 1) + Array(size+1).join('▀');
+      }
+
+      return ascii.substring(0, ascii.length-1);
+    };
+
+    _this.createASCII = function(cellSize, margin) {
+      cellSize = cellSize || 1;
+
+      if (cellSize < 2) {
+        return _createHalfASCII(margin);
+      }
+
+      cellSize -= 1;
+      margin = (typeof margin == 'undefined')? cellSize * 2 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      var y, x, r, p;
+
+      var white = Array(cellSize+1).join('██');
+      var black = Array(cellSize+1).join('  ');
+
+      var ascii = '';
+      var line = '';
+      for (y = 0; y < size; y += 1) {
+        r = Math.floor( (y - min) / cellSize);
+        line = '';
+        for (x = 0; x < size; x += 1) {
+          p = 1;
+
+          if (min <= x && x < max && min <= y && y < max && _this.isDark(r, Math.floor((x - min) / cellSize))) {
+            p = 0;
+          }
+
+          // Output 2 characters per pixel, to create full square. 1 character per pixels gives only half width of square.
+          line += p ? white : black;
+        }
+
+        for (r = 0; r < cellSize; r += 1) {
+          ascii += line + '\n';
+        }
+      }
+
+      return ascii.substring(0, ascii.length-1);
+    };
+
+    _this.renderTo2dContext = function(context, cellSize) {
+      cellSize = cellSize || 2;
+      var length = _this.getModuleCount();
+      for (var row = 0; row < length; row++) {
+        for (var col = 0; col < length; col++) {
+          context.fillStyle = _this.isDark(row, col) ? 'black' : 'white';
+          context.fillRect(row * cellSize, col * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrcode.stringToBytes
+  //---------------------------------------------------------------------
+
+  qrcode.stringToBytesFuncs = {
+    'default' : function(s) {
+      var bytes = [];
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charCodeAt(i);
+        bytes.push(c & 0xff);
+      }
+      return bytes;
+    }
+  };
+
+  qrcode.stringToBytes = qrcode.stringToBytesFuncs['default'];
+
+  //---------------------------------------------------------------------
+  // qrcode.createStringToBytes
+  //---------------------------------------------------------------------
+
+  /**
+   * @param unicodeData base64 string of byte array.
+   * [16bit Unicode],[16bit Bytes], ...
+   * @param numChars
+   */
+  qrcode.createStringToBytes = function(unicodeData, numChars) {
+
+    // create conversion map.
+
+    var unicodeMap = function() {
+
+      var bin = base64DecodeInputStream(unicodeData);
+      var read = function() {
+        var b = bin.read();
+        if (b == -1) throw 'eof';
+        return b;
+      };
+
+      var count = 0;
+      var unicodeMap = {};
+      while (true) {
+        var b0 = bin.read();
+        if (b0 == -1) break;
+        var b1 = read();
+        var b2 = read();
+        var b3 = read();
+        var k = String.fromCharCode( (b0 << 8) | b1);
+        var v = (b2 << 8) | b3;
+        unicodeMap[k] = v;
+        count += 1;
+      }
+      if (count != numChars) {
+        throw count + ' != ' + numChars;
+      }
+
+      return unicodeMap;
+    }();
+
+    var unknownChar = '?'.charCodeAt(0);
+
+    return function(s) {
+      var bytes = [];
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charCodeAt(i);
+        if (c < 128) {
+          bytes.push(c);
+        } else {
+          var b = unicodeMap[s.charAt(i)];
+          if (typeof b == 'number') {
+            if ( (b & 0xff) == b) {
+              // 1byte
+              bytes.push(b);
+            } else {
+              // 2bytes
+              bytes.push(b >>> 8);
+              bytes.push(b & 0xff);
+            }
+          } else {
+            bytes.push(unknownChar);
+          }
+        }
+      }
+      return bytes;
+    };
+  };
+
+  //---------------------------------------------------------------------
+  // QRMode
+  //---------------------------------------------------------------------
+
+  var QRMode = {
+    MODE_NUMBER :    1 << 0,
+    MODE_ALPHA_NUM : 1 << 1,
+    MODE_8BIT_BYTE : 1 << 2,
+    MODE_KANJI :     1 << 3
+  };
+
+  //---------------------------------------------------------------------
+  // QRErrorCorrectionLevel
+  //---------------------------------------------------------------------
+
+  var QRErrorCorrectionLevel = {
+    L : 1,
+    M : 0,
+    Q : 3,
+    H : 2
+  };
+
+  //---------------------------------------------------------------------
+  // QRMaskPattern
+  //---------------------------------------------------------------------
+
+  var QRMaskPattern = {
+    PATTERN000 : 0,
+    PATTERN001 : 1,
+    PATTERN010 : 2,
+    PATTERN011 : 3,
+    PATTERN100 : 4,
+    PATTERN101 : 5,
+    PATTERN110 : 6,
+    PATTERN111 : 7
+  };
+
+  //---------------------------------------------------------------------
+  // QRUtil
+  //---------------------------------------------------------------------
+
+  var QRUtil = function() {
+
+    var PATTERN_POSITION_TABLE = [
+      [],
+      [6, 18],
+      [6, 22],
+      [6, 26],
+      [6, 30],
+      [6, 34],
+      [6, 22, 38],
+      [6, 24, 42],
+      [6, 26, 46],
+      [6, 28, 50],
+      [6, 30, 54],
+      [6, 32, 58],
+      [6, 34, 62],
+      [6, 26, 46, 66],
+      [6, 26, 48, 70],
+      [6, 26, 50, 74],
+      [6, 30, 54, 78],
+      [6, 30, 56, 82],
+      [6, 30, 58, 86],
+      [6, 34, 62, 90],
+      [6, 28, 50, 72, 94],
+      [6, 26, 50, 74, 98],
+      [6, 30, 54, 78, 102],
+      [6, 28, 54, 80, 106],
+      [6, 32, 58, 84, 110],
+      [6, 30, 58, 86, 114],
+      [6, 34, 62, 90, 118],
+      [6, 26, 50, 74, 98, 122],
+      [6, 30, 54, 78, 102, 126],
+      [6, 26, 52, 78, 104, 130],
+      [6, 30, 56, 82, 108, 134],
+      [6, 34, 60, 86, 112, 138],
+      [6, 30, 58, 86, 114, 142],
+      [6, 34, 62, 90, 118, 146],
+      [6, 30, 54, 78, 102, 126, 150],
+      [6, 24, 50, 76, 102, 128, 154],
+      [6, 28, 54, 80, 106, 132, 158],
+      [6, 32, 58, 84, 110, 136, 162],
+      [6, 26, 54, 82, 110, 138, 166],
+      [6, 30, 58, 86, 114, 142, 170]
+    ];
+    var G15 = (1 << 10) | (1 << 8) | (1 << 5) | (1 << 4) | (1 << 2) | (1 << 1) | (1 << 0);
+    var G18 = (1 << 12) | (1 << 11) | (1 << 10) | (1 << 9) | (1 << 8) | (1 << 5) | (1 << 2) | (1 << 0);
+    var G15_MASK = (1 << 14) | (1 << 12) | (1 << 10) | (1 << 4) | (1 << 1);
+
+    var _this = {};
+
+    var getBCHDigit = function(data) {
+      var digit = 0;
+      while (data != 0) {
+        digit += 1;
+        data >>>= 1;
+      }
+      return digit;
+    };
+
+    _this.getBCHTypeInfo = function(data) {
+      var d = data << 10;
+      while (getBCHDigit(d) - getBCHDigit(G15) >= 0) {
+        d ^= (G15 << (getBCHDigit(d) - getBCHDigit(G15) ) );
+      }
+      return ( (data << 10) | d) ^ G15_MASK;
+    };
+
+    _this.getBCHTypeNumber = function(data) {
+      var d = data << 12;
+      while (getBCHDigit(d) - getBCHDigit(G18) >= 0) {
+        d ^= (G18 << (getBCHDigit(d) - getBCHDigit(G18) ) );
+      }
+      return (data << 12) | d;
+    };
+
+    _this.getPatternPosition = function(typeNumber) {
+      return PATTERN_POSITION_TABLE[typeNumber - 1];
+    };
+
+    _this.getMaskFunction = function(maskPattern) {
+
+      switch (maskPattern) {
+
+      case QRMaskPattern.PATTERN000 :
+        return function(i, j) { return (i + j) % 2 == 0; };
+      case QRMaskPattern.PATTERN001 :
+        return function(i, j) { return i % 2 == 0; };
+      case QRMaskPattern.PATTERN010 :
+        return function(i, j) { return j % 3 == 0; };
+      case QRMaskPattern.PATTERN011 :
+        return function(i, j) { return (i + j) % 3 == 0; };
+      case QRMaskPattern.PATTERN100 :
+        return function(i, j) { return (Math.floor(i / 2) + Math.floor(j / 3) ) % 2 == 0; };
+      case QRMaskPattern.PATTERN101 :
+        return function(i, j) { return (i * j) % 2 + (i * j) % 3 == 0; };
+      case QRMaskPattern.PATTERN110 :
+        return function(i, j) { return ( (i * j) % 2 + (i * j) % 3) % 2 == 0; };
+      case QRMaskPattern.PATTERN111 :
+        return function(i, j) { return ( (i * j) % 3 + (i + j) % 2) % 2 == 0; };
+
+      default :
+        throw 'bad maskPattern:' + maskPattern;
+      }
+    };
+
+    _this.getErrorCorrectPolynomial = function(errorCorrectLength) {
+      var a = qrPolynomial([1], 0);
+      for (var i = 0; i < errorCorrectLength; i += 1) {
+        a = a.multiply(qrPolynomial([1, QRMath.gexp(i)], 0) );
+      }
+      return a;
+    };
+
+    _this.getLengthInBits = function(mode, type) {
+
+      if (1 <= type && type < 10) {
+
+        // 1 - 9
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 10;
+        case QRMode.MODE_ALPHA_NUM : return 9;
+        case QRMode.MODE_8BIT_BYTE : return 8;
+        case QRMode.MODE_KANJI     : return 8;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else if (type < 27) {
+
+        // 10 - 26
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 12;
+        case QRMode.MODE_ALPHA_NUM : return 11;
+        case QRMode.MODE_8BIT_BYTE : return 16;
+        case QRMode.MODE_KANJI     : return 10;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else if (type < 41) {
+
+        // 27 - 40
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 14;
+        case QRMode.MODE_ALPHA_NUM : return 13;
+        case QRMode.MODE_8BIT_BYTE : return 16;
+        case QRMode.MODE_KANJI     : return 12;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else {
+        throw 'type:' + type;
+      }
+    };
+
+    _this.getLostPoint = function(qrcode) {
+
+      var moduleCount = qrcode.getModuleCount();
+
+      var lostPoint = 0;
+
+      // LEVEL1
+
+      for (var row = 0; row < moduleCount; row += 1) {
+        for (var col = 0; col < moduleCount; col += 1) {
+
+          var sameCount = 0;
+          var dark = qrcode.isDark(row, col);
+
+          for (var r = -1; r <= 1; r += 1) {
+
+            if (row + r < 0 || moduleCount <= row + r) {
+              continue;
+            }
+
+            for (var c = -1; c <= 1; c += 1) {
+
+              if (col + c < 0 || moduleCount <= col + c) {
+                continue;
+              }
+
+              if (r == 0 && c == 0) {
+                continue;
+              }
+
+              if (dark == qrcode.isDark(row + r, col + c) ) {
+                sameCount += 1;
+              }
+            }
+          }
+
+          if (sameCount > 5) {
+            lostPoint += (3 + sameCount - 5);
+          }
+        }
+      };
+
+      // LEVEL2
+
+      for (var row = 0; row < moduleCount - 1; row += 1) {
+        for (var col = 0; col < moduleCount - 1; col += 1) {
+          var count = 0;
+          if (qrcode.isDark(row, col) ) count += 1;
+          if (qrcode.isDark(row + 1, col) ) count += 1;
+          if (qrcode.isDark(row, col + 1) ) count += 1;
+          if (qrcode.isDark(row + 1, col + 1) ) count += 1;
+          if (count == 0 || count == 4) {
+            lostPoint += 3;
+          }
+        }
+      }
+
+      // LEVEL3
+
+      for (var row = 0; row < moduleCount; row += 1) {
+        for (var col = 0; col < moduleCount - 6; col += 1) {
+          if (qrcode.isDark(row, col)
+              && !qrcode.isDark(row, col + 1)
+              &&  qrcode.isDark(row, col + 2)
+              &&  qrcode.isDark(row, col + 3)
+              &&  qrcode.isDark(row, col + 4)
+              && !qrcode.isDark(row, col + 5)
+              &&  qrcode.isDark(row, col + 6) ) {
+            lostPoint += 40;
+          }
+        }
+      }
+
+      for (var col = 0; col < moduleCount; col += 1) {
+        for (var row = 0; row < moduleCount - 6; row += 1) {
+          if (qrcode.isDark(row, col)
+              && !qrcode.isDark(row + 1, col)
+              &&  qrcode.isDark(row + 2, col)
+              &&  qrcode.isDark(row + 3, col)
+              &&  qrcode.isDark(row + 4, col)
+              && !qrcode.isDark(row + 5, col)
+              &&  qrcode.isDark(row + 6, col) ) {
+            lostPoint += 40;
+          }
+        }
+      }
+
+      // LEVEL4
+
+      var darkCount = 0;
+
+      for (var col = 0; col < moduleCount; col += 1) {
+        for (var row = 0; row < moduleCount; row += 1) {
+          if (qrcode.isDark(row, col) ) {
+            darkCount += 1;
+          }
+        }
+      }
+
+      var ratio = Math.abs(100 * darkCount / moduleCount / moduleCount - 50) / 5;
+      lostPoint += ratio * 10;
+
+      return lostPoint;
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // QRMath
+  //---------------------------------------------------------------------
+
+  var QRMath = function() {
+
+    var EXP_TABLE = new Array(256);
+    var LOG_TABLE = new Array(256);
+
+    // initialize tables
+    for (var i = 0; i < 8; i += 1) {
+      EXP_TABLE[i] = 1 << i;
+    }
+    for (var i = 8; i < 256; i += 1) {
+      EXP_TABLE[i] = EXP_TABLE[i - 4]
+        ^ EXP_TABLE[i - 5]
+        ^ EXP_TABLE[i - 6]
+        ^ EXP_TABLE[i - 8];
+    }
+    for (var i = 0; i < 255; i += 1) {
+      LOG_TABLE[EXP_TABLE[i] ] = i;
+    }
+
+    var _this = {};
+
+    _this.glog = function(n) {
+
+      if (n < 1) {
+        throw 'glog(' + n + ')';
+      }
+
+      return LOG_TABLE[n];
+    };
+
+    _this.gexp = function(n) {
+
+      while (n < 0) {
+        n += 255;
+      }
+
+      while (n >= 256) {
+        n -= 255;
+      }
+
+      return EXP_TABLE[n];
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // qrPolynomial
+  //---------------------------------------------------------------------
+
+  function qrPolynomial(num, shift) {
+
+    if (typeof num.length == 'undefined') {
+      throw num.length + '/' + shift;
+    }
+
+    var _num = function() {
+      var offset = 0;
+      while (offset < num.length && num[offset] == 0) {
+        offset += 1;
+      }
+      var _num = new Array(num.length - offset + shift);
+      for (var i = 0; i < num.length - offset; i += 1) {
+        _num[i] = num[i + offset];
+      }
+      return _num;
+    }();
+
+    var _this = {};
+
+    _this.getAt = function(index) {
+      return _num[index];
+    };
+
+    _this.getLength = function() {
+      return _num.length;
+    };
+
+    _this.multiply = function(e) {
+
+      var num = new Array(_this.getLength() + e.getLength() - 1);
+
+      for (var i = 0; i < _this.getLength(); i += 1) {
+        for (var j = 0; j < e.getLength(); j += 1) {
+          num[i + j] ^= QRMath.gexp(QRMath.glog(_this.getAt(i) ) + QRMath.glog(e.getAt(j) ) );
+        }
+      }
+
+      return qrPolynomial(num, 0);
+    };
+
+    _this.mod = function(e) {
+
+      if (_this.getLength() - e.getLength() < 0) {
+        return _this;
+      }
+
+      var ratio = QRMath.glog(_this.getAt(0) ) - QRMath.glog(e.getAt(0) );
+
+      var num = new Array(_this.getLength() );
+      for (var i = 0; i < _this.getLength(); i += 1) {
+        num[i] = _this.getAt(i);
+      }
+
+      for (var i = 0; i < e.getLength(); i += 1) {
+        num[i] ^= QRMath.gexp(QRMath.glog(e.getAt(i) ) + ratio);
+      }
+
+      // recursive call
+      return qrPolynomial(num, 0).mod(e);
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // QRRSBlock
+  //---------------------------------------------------------------------
+
+  var QRRSBlock = function() {
+
+    var RS_BLOCK_TABLE = [
+
+      // L
+      // M
+      // Q
+      // H
+
+      // 1
+      [1, 26, 19],
+      [1, 26, 16],
+      [1, 26, 13],
+      [1, 26, 9],
+
+      // 2
+      [1, 44, 34],
+      [1, 44, 28],
+      [1, 44, 22],
+      [1, 44, 16],
+
+      // 3
+      [1, 70, 55],
+      [1, 70, 44],
+      [2, 35, 17],
+      [2, 35, 13],
+
+      // 4
+      [1, 100, 80],
+      [2, 50, 32],
+      [2, 50, 24],
+      [4, 25, 9],
+
+      // 5
+      [1, 134, 108],
+      [2, 67, 43],
+      [2, 33, 15, 2, 34, 16],
+      [2, 33, 11, 2, 34, 12],
+
+      // 6
+      [2, 86, 68],
+      [4, 43, 27],
+      [4, 43, 19],
+      [4, 43, 15],
+
+      // 7
+      [2, 98, 78],
+      [4, 49, 31],
+      [2, 32, 14, 4, 33, 15],
+      [4, 39, 13, 1, 40, 14],
+
+      // 8
+      [2, 121, 97],
+      [2, 60, 38, 2, 61, 39],
+      [4, 40, 18, 2, 41, 19],
+      [4, 40, 14, 2, 41, 15],
+
+      // 9
+      [2, 146, 116],
+      [3, 58, 36, 2, 59, 37],
+      [4, 36, 16, 4, 37, 17],
+      [4, 36, 12, 4, 37, 13],
+
+      // 10
+      [2, 86, 68, 2, 87, 69],
+      [4, 69, 43, 1, 70, 44],
+      [6, 43, 19, 2, 44, 20],
+      [6, 43, 15, 2, 44, 16],
+
+      // 11
+      [4, 101, 81],
+      [1, 80, 50, 4, 81, 51],
+      [4, 50, 22, 4, 51, 23],
+      [3, 36, 12, 8, 37, 13],
+
+      // 12
+      [2, 116, 92, 2, 117, 93],
+      [6, 58, 36, 2, 59, 37],
+      [4, 46, 20, 6, 47, 21],
+      [7, 42, 14, 4, 43, 15],
+
+      // 13
+      [4, 133, 107],
+      [8, 59, 37, 1, 60, 38],
+      [8, 44, 20, 4, 45, 21],
+      [12, 33, 11, 4, 34, 12],
+
+      // 14
+      [3, 145, 115, 1, 146, 116],
+      [4, 64, 40, 5, 65, 41],
+      [11, 36, 16, 5, 37, 17],
+      [11, 36, 12, 5, 37, 13],
+
+      // 15
+      [5, 109, 87, 1, 110, 88],
+      [5, 65, 41, 5, 66, 42],
+      [5, 54, 24, 7, 55, 25],
+      [11, 36, 12, 7, 37, 13],
+
+      // 16
+      [5, 122, 98, 1, 123, 99],
+      [7, 73, 45, 3, 74, 46],
+      [15, 43, 19, 2, 44, 20],
+      [3, 45, 15, 13, 46, 16],
+
+      // 17
+      [1, 135, 107, 5, 136, 108],
+      [10, 74, 46, 1, 75, 47],
+      [1, 50, 22, 15, 51, 23],
+      [2, 42, 14, 17, 43, 15],
+
+      // 18
+      [5, 150, 120, 1, 151, 121],
+      [9, 69, 43, 4, 70, 44],
+      [17, 50, 22, 1, 51, 23],
+      [2, 42, 14, 19, 43, 15],
+
+      // 19
+      [3, 141, 113, 4, 142, 114],
+      [3, 70, 44, 11, 71, 45],
+      [17, 47, 21, 4, 48, 22],
+      [9, 39, 13, 16, 40, 14],
+
+      // 20
+      [3, 135, 107, 5, 136, 108],
+      [3, 67, 41, 13, 68, 42],
+      [15, 54, 24, 5, 55, 25],
+      [15, 43, 15, 10, 44, 16],
+
+      // 21
+      [4, 144, 116, 4, 145, 117],
+      [17, 68, 42],
+      [17, 50, 22, 6, 51, 23],
+      [19, 46, 16, 6, 47, 17],
+
+      // 22
+      [2, 139, 111, 7, 140, 112],
+      [17, 74, 46],
+      [7, 54, 24, 16, 55, 25],
+      [34, 37, 13],
+
+      // 23
+      [4, 151, 121, 5, 152, 122],
+      [4, 75, 47, 14, 76, 48],
+      [11, 54, 24, 14, 55, 25],
+      [16, 45, 15, 14, 46, 16],
+
+      // 24
+      [6, 147, 117, 4, 148, 118],
+      [6, 73, 45, 14, 74, 46],
+      [11, 54, 24, 16, 55, 25],
+      [30, 46, 16, 2, 47, 17],
+
+      // 25
+      [8, 132, 106, 4, 133, 107],
+      [8, 75, 47, 13, 76, 48],
+      [7, 54, 24, 22, 55, 25],
+      [22, 45, 15, 13, 46, 16],
+
+      // 26
+      [10, 142, 114, 2, 143, 115],
+      [19, 74, 46, 4, 75, 47],
+      [28, 50, 22, 6, 51, 23],
+      [33, 46, 16, 4, 47, 17],
+
+      // 27
+      [8, 152, 122, 4, 153, 123],
+      [22, 73, 45, 3, 74, 46],
+      [8, 53, 23, 26, 54, 24],
+      [12, 45, 15, 28, 46, 16],
+
+      // 28
+      [3, 147, 117, 10, 148, 118],
+      [3, 73, 45, 23, 74, 46],
+      [4, 54, 24, 31, 55, 25],
+      [11, 45, 15, 31, 46, 16],
+
+      // 29
+      [7, 146, 116, 7, 147, 117],
+      [21, 73, 45, 7, 74, 46],
+      [1, 53, 23, 37, 54, 24],
+      [19, 45, 15, 26, 46, 16],
+
+      // 30
+      [5, 145, 115, 10, 146, 116],
+      [19, 75, 47, 10, 76, 48],
+      [15, 54, 24, 25, 55, 25],
+      [23, 45, 15, 25, 46, 16],
+
+      // 31
+      [13, 145, 115, 3, 146, 116],
+      [2, 74, 46, 29, 75, 47],
+      [42, 54, 24, 1, 55, 25],
+      [23, 45, 15, 28, 46, 16],
+
+      // 32
+      [17, 145, 115],
+      [10, 74, 46, 23, 75, 47],
+      [10, 54, 24, 35, 55, 25],
+      [19, 45, 15, 35, 46, 16],
+
+      // 33
+      [17, 145, 115, 1, 146, 116],
+      [14, 74, 46, 21, 75, 47],
+      [29, 54, 24, 19, 55, 25],
+      [11, 45, 15, 46, 46, 16],
+
+      // 34
+      [13, 145, 115, 6, 146, 116],
+      [14, 74, 46, 23, 75, 47],
+      [44, 54, 24, 7, 55, 25],
+      [59, 46, 16, 1, 47, 17],
+
+      // 35
+      [12, 151, 121, 7, 152, 122],
+      [12, 75, 47, 26, 76, 48],
+      [39, 54, 24, 14, 55, 25],
+      [22, 45, 15, 41, 46, 16],
+
+      // 36
+      [6, 151, 121, 14, 152, 122],
+      [6, 75, 47, 34, 76, 48],
+      [46, 54, 24, 10, 55, 25],
+      [2, 45, 15, 64, 46, 16],
+
+      // 37
+      [17, 152, 122, 4, 153, 123],
+      [29, 74, 46, 14, 75, 47],
+      [49, 54, 24, 10, 55, 25],
+      [24, 45, 15, 46, 46, 16],
+
+      // 38
+      [4, 152, 122, 18, 153, 123],
+      [13, 74, 46, 32, 75, 47],
+      [48, 54, 24, 14, 55, 25],
+      [42, 45, 15, 32, 46, 16],
+
+      // 39
+      [20, 147, 117, 4, 148, 118],
+      [40, 75, 47, 7, 76, 48],
+      [43, 54, 24, 22, 55, 25],
+      [10, 45, 15, 67, 46, 16],
+
+      // 40
+      [19, 148, 118, 6, 149, 119],
+      [18, 75, 47, 31, 76, 48],
+      [34, 54, 24, 34, 55, 25],
+      [20, 45, 15, 61, 46, 16]
+    ];
+
+    var qrRSBlock = function(totalCount, dataCount) {
+      var _this = {};
+      _this.totalCount = totalCount;
+      _this.dataCount = dataCount;
+      return _this;
+    };
+
+    var _this = {};
+
+    var getRsBlockTable = function(typeNumber, errorCorrectionLevel) {
+
+      switch(errorCorrectionLevel) {
+      case QRErrorCorrectionLevel.L :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 0];
+      case QRErrorCorrectionLevel.M :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 1];
+      case QRErrorCorrectionLevel.Q :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 2];
+      case QRErrorCorrectionLevel.H :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 3];
+      default :
+        return undefined;
+      }
+    };
+
+    _this.getRSBlocks = function(typeNumber, errorCorrectionLevel) {
+
+      var rsBlock = getRsBlockTable(typeNumber, errorCorrectionLevel);
+
+      if (typeof rsBlock == 'undefined') {
+        throw 'bad rs block @ typeNumber:' + typeNumber +
+            '/errorCorrectionLevel:' + errorCorrectionLevel;
+      }
+
+      var length = rsBlock.length / 3;
+
+      var list = [];
+
+      for (var i = 0; i < length; i += 1) {
+
+        var count = rsBlock[i * 3 + 0];
+        var totalCount = rsBlock[i * 3 + 1];
+        var dataCount = rsBlock[i * 3 + 2];
+
+        for (var j = 0; j < count; j += 1) {
+          list.push(qrRSBlock(totalCount, dataCount) );
+        }
+      }
+
+      return list;
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // qrBitBuffer
+  //---------------------------------------------------------------------
+
+  var qrBitBuffer = function() {
+
+    var _buffer = [];
+    var _length = 0;
+
+    var _this = {};
+
+    _this.getBuffer = function() {
+      return _buffer;
+    };
+
+    _this.getAt = function(index) {
+      var bufIndex = Math.floor(index / 8);
+      return ( (_buffer[bufIndex] >>> (7 - index % 8) ) & 1) == 1;
+    };
+
+    _this.put = function(num, length) {
+      for (var i = 0; i < length; i += 1) {
+        _this.putBit( ( (num >>> (length - i - 1) ) & 1) == 1);
+      }
+    };
+
+    _this.getLengthInBits = function() {
+      return _length;
+    };
+
+    _this.putBit = function(bit) {
+
+      var bufIndex = Math.floor(_length / 8);
+      if (_buffer.length <= bufIndex) {
+        _buffer.push(0);
+      }
+
+      if (bit) {
+        _buffer[bufIndex] |= (0x80 >>> (_length % 8) );
+      }
+
+      _length += 1;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrNumber
+  //---------------------------------------------------------------------
+
+  var qrNumber = function(data) {
+
+    var _mode = QRMode.MODE_NUMBER;
+    var _data = data;
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _data.length;
+    };
+
+    _this.write = function(buffer) {
+
+      var data = _data;
+
+      var i = 0;
+
+      while (i + 2 < data.length) {
+        buffer.put(strToNum(data.substring(i, i + 3) ), 10);
+        i += 3;
+      }
+
+      if (i < data.length) {
+        if (data.length - i == 1) {
+          buffer.put(strToNum(data.substring(i, i + 1) ), 4);
+        } else if (data.length - i == 2) {
+          buffer.put(strToNum(data.substring(i, i + 2) ), 7);
+        }
+      }
+    };
+
+    var strToNum = function(s) {
+      var num = 0;
+      for (var i = 0; i < s.length; i += 1) {
+        num = num * 10 + chatToNum(s.charAt(i) );
+      }
+      return num;
+    };
+
+    var chatToNum = function(c) {
+      if ('0' <= c && c <= '9') {
+        return c.charCodeAt(0) - '0'.charCodeAt(0);
+      }
+      throw 'illegal char :' + c;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrAlphaNum
+  //---------------------------------------------------------------------
+
+  var qrAlphaNum = function(data) {
+
+    var _mode = QRMode.MODE_ALPHA_NUM;
+    var _data = data;
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _data.length;
+    };
+
+    _this.write = function(buffer) {
+
+      var s = _data;
+
+      var i = 0;
+
+      while (i + 1 < s.length) {
+        buffer.put(
+          getCode(s.charAt(i) ) * 45 +
+          getCode(s.charAt(i + 1) ), 11);
+        i += 2;
+      }
+
+      if (i < s.length) {
+        buffer.put(getCode(s.charAt(i) ), 6);
+      }
+    };
+
+    var getCode = function(c) {
+
+      if ('0' <= c && c <= '9') {
+        return c.charCodeAt(0) - '0'.charCodeAt(0);
+      } else if ('A' <= c && c <= 'Z') {
+        return c.charCodeAt(0) - 'A'.charCodeAt(0) + 10;
+      } else {
+        switch (c) {
+        case ' ' : return 36;
+        case '$' : return 37;
+        case '%' : return 38;
+        case '*' : return 39;
+        case '+' : return 40;
+        case '-' : return 41;
+        case '.' : return 42;
+        case '/' : return 43;
+        case ':' : return 44;
+        default :
+          throw 'illegal char :' + c;
+        }
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qr8BitByte
+  //---------------------------------------------------------------------
+
+  var qr8BitByte = function(data) {
+
+    var _mode = QRMode.MODE_8BIT_BYTE;
+    var _data = data;
+    var _bytes = qrcode.stringToBytes(data);
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _bytes.length;
+    };
+
+    _this.write = function(buffer) {
+      for (var i = 0; i < _bytes.length; i += 1) {
+        buffer.put(_bytes[i], 8);
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrKanji
+  //---------------------------------------------------------------------
+
+  var qrKanji = function(data) {
+
+    var _mode = QRMode.MODE_KANJI;
+    var _data = data;
+
+    var stringToBytes = qrcode.stringToBytesFuncs['SJIS'];
+    if (!stringToBytes) {
+      throw 'sjis not supported.';
+    }
+    !function(c, code) {
+      // self test for sjis support.
+      var test = stringToBytes(c);
+      if (test.length != 2 || ( (test[0] << 8) | test[1]) != code) {
+        throw 'sjis not supported.';
+      }
+    }('\u53cb', 0x9746);
+
+    var _bytes = stringToBytes(data);
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return ~~(_bytes.length / 2);
+    };
+
+    _this.write = function(buffer) {
+
+      var data = _bytes;
+
+      var i = 0;
+
+      while (i + 1 < data.length) {
+
+        var c = ( (0xff & data[i]) << 8) | (0xff & data[i + 1]);
+
+        if (0x8140 <= c && c <= 0x9FFC) {
+          c -= 0x8140;
+        } else if (0xE040 <= c && c <= 0xEBBF) {
+          c -= 0xC140;
+        } else {
+          throw 'illegal char at ' + (i + 1) + '/' + c;
+        }
+
+        c = ( (c >>> 8) & 0xff) * 0xC0 + (c & 0xff);
+
+        buffer.put(c, 13);
+
+        i += 2;
+      }
+
+      if (i < data.length) {
+        throw 'illegal char at ' + (i + 1);
+      }
+    };
+
+    return _this;
+  };
+
+  //=====================================================================
+  // GIF Support etc.
+  //
+
+  //---------------------------------------------------------------------
+  // byteArrayOutputStream
+  //---------------------------------------------------------------------
+
+  var byteArrayOutputStream = function() {
+
+    var _bytes = [];
+
+    var _this = {};
+
+    _this.writeByte = function(b) {
+      _bytes.push(b & 0xff);
+    };
+
+    _this.writeShort = function(i) {
+      _this.writeByte(i);
+      _this.writeByte(i >>> 8);
+    };
+
+    _this.writeBytes = function(b, off, len) {
+      off = off || 0;
+      len = len || b.length;
+      for (var i = 0; i < len; i += 1) {
+        _this.writeByte(b[i + off]);
+      }
+    };
+
+    _this.writeString = function(s) {
+      for (var i = 0; i < s.length; i += 1) {
+        _this.writeByte(s.charCodeAt(i) );
+      }
+    };
+
+    _this.toByteArray = function() {
+      return _bytes;
+    };
+
+    _this.toString = function() {
+      var s = '';
+      s += '[';
+      for (var i = 0; i < _bytes.length; i += 1) {
+        if (i > 0) {
+          s += ',';
+        }
+        s += _bytes[i];
+      }
+      s += ']';
+      return s;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // base64EncodeOutputStream
+  //---------------------------------------------------------------------
+
+  var base64EncodeOutputStream = function() {
+
+    var _buffer = 0;
+    var _buflen = 0;
+    var _length = 0;
+    var _base64 = '';
+
+    var _this = {};
+
+    var writeEncoded = function(b) {
+      _base64 += String.fromCharCode(encode(b & 0x3f) );
+    };
+
+    var encode = function(n) {
+      if (n < 0) {
+        // error.
+      } else if (n < 26) {
+        return 0x41 + n;
+      } else if (n < 52) {
+        return 0x61 + (n - 26);
+      } else if (n < 62) {
+        return 0x30 + (n - 52);
+      } else if (n == 62) {
+        return 0x2b;
+      } else if (n == 63) {
+        return 0x2f;
+      }
+      throw 'n:' + n;
+    };
+
+    _this.writeByte = function(n) {
+
+      _buffer = (_buffer << 8) | (n & 0xff);
+      _buflen += 8;
+      _length += 1;
+
+      while (_buflen >= 6) {
+        writeEncoded(_buffer >>> (_buflen - 6) );
+        _buflen -= 6;
+      }
+    };
+
+    _this.flush = function() {
+
+      if (_buflen > 0) {
+        writeEncoded(_buffer << (6 - _buflen) );
+        _buffer = 0;
+        _buflen = 0;
+      }
+
+      if (_length % 3 != 0) {
+        // padding
+        var padlen = 3 - _length % 3;
+        for (var i = 0; i < padlen; i += 1) {
+          _base64 += '=';
+        }
+      }
+    };
+
+    _this.toString = function() {
+      return _base64;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // base64DecodeInputStream
+  //---------------------------------------------------------------------
+
+  var base64DecodeInputStream = function(str) {
+
+    var _str = str;
+    var _pos = 0;
+    var _buffer = 0;
+    var _buflen = 0;
+
+    var _this = {};
+
+    _this.read = function() {
+
+      while (_buflen < 8) {
+
+        if (_pos >= _str.length) {
+          if (_buflen == 0) {
+            return -1;
+          }
+          throw 'unexpected end of file./' + _buflen;
+        }
+
+        var c = _str.charAt(_pos);
+        _pos += 1;
+
+        if (c == '=') {
+          _buflen = 0;
+          return -1;
+        } else if (c.match(/^\s$/) ) {
+          // ignore if whitespace.
+          continue;
+        }
+
+        _buffer = (_buffer << 6) | decode(c.charCodeAt(0) );
+        _buflen += 6;
+      }
+
+      var n = (_buffer >>> (_buflen - 8) ) & 0xff;
+      _buflen -= 8;
+      return n;
+    };
+
+    var decode = function(c) {
+      if (0x41 <= c && c <= 0x5a) {
+        return c - 0x41;
+      } else if (0x61 <= c && c <= 0x7a) {
+        return c - 0x61 + 26;
+      } else if (0x30 <= c && c <= 0x39) {
+        return c - 0x30 + 52;
+      } else if (c == 0x2b) {
+        return 62;
+      } else if (c == 0x2f) {
+        return 63;
+      } else {
+        throw 'c:' + c;
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // gifImage (B/W)
+  //---------------------------------------------------------------------
+
+  var gifImage = function(width, height) {
+
+    var _width = width;
+    var _height = height;
+    var _data = new Array(width * height);
+
+    var _this = {};
+
+    _this.setPixel = function(x, y, pixel) {
+      _data[y * _width + x] = pixel;
+    };
+
+    _this.write = function(out) {
+
+      //---------------------------------
+      // GIF Signature
+
+      out.writeString('GIF87a');
+
+      //---------------------------------
+      // Screen Descriptor
+
+      out.writeShort(_width);
+      out.writeShort(_height);
+
+      out.writeByte(0x80); // 2bit
+      out.writeByte(0);
+      out.writeByte(0);
+
+      //---------------------------------
+      // Global Color Map
+
+      // black
+      out.writeByte(0x00);
+      out.writeByte(0x00);
+      out.writeByte(0x00);
+
+      // white
+      out.writeByte(0xff);
+      out.writeByte(0xff);
+      out.writeByte(0xff);
+
+      //---------------------------------
+      // Image Descriptor
+
+      out.writeString(',');
+      out.writeShort(0);
+      out.writeShort(0);
+      out.writeShort(_width);
+      out.writeShort(_height);
+      out.writeByte(0);
+
+      //---------------------------------
+      // Local Color Map
+
+      //---------------------------------
+      // Raster Data
+
+      var lzwMinCodeSize = 2;
+      var raster = getLZWRaster(lzwMinCodeSize);
+
+      out.writeByte(lzwMinCodeSize);
+
+      var offset = 0;
+
+      while (raster.length - offset > 255) {
+        out.writeByte(255);
+        out.writeBytes(raster, offset, 255);
+        offset += 255;
+      }
+
+      out.writeByte(raster.length - offset);
+      out.writeBytes(raster, offset, raster.length - offset);
+      out.writeByte(0x00);
+
+      //---------------------------------
+      // GIF Terminator
+      out.writeString(';');
+    };
+
+    var bitOutputStream = function(out) {
+
+      var _out = out;
+      var _bitLength = 0;
+      var _bitBuffer = 0;
+
+      var _this = {};
+
+      _this.write = function(data, length) {
+
+        if ( (data >>> length) != 0) {
+          throw 'length over';
+        }
+
+        while (_bitLength + length >= 8) {
+          _out.writeByte(0xff & ( (data << _bitLength) | _bitBuffer) );
+          length -= (8 - _bitLength);
+          data >>>= (8 - _bitLength);
+          _bitBuffer = 0;
+          _bitLength = 0;
+        }
+
+        _bitBuffer = (data << _bitLength) | _bitBuffer;
+        _bitLength = _bitLength + length;
+      };
+
+      _this.flush = function() {
+        if (_bitLength > 0) {
+          _out.writeByte(_bitBuffer);
+        }
+      };
+
+      return _this;
+    };
+
+    var getLZWRaster = function(lzwMinCodeSize) {
+
+      var clearCode = 1 << lzwMinCodeSize;
+      var endCode = (1 << lzwMinCodeSize) + 1;
+      var bitLength = lzwMinCodeSize + 1;
+
+      // Setup LZWTable
+      var table = lzwTable();
+
+      for (var i = 0; i < clearCode; i += 1) {
+        table.add(String.fromCharCode(i) );
+      }
+      table.add(String.fromCharCode(clearCode) );
+      table.add(String.fromCharCode(endCode) );
+
+      var byteOut = byteArrayOutputStream();
+      var bitOut = bitOutputStream(byteOut);
+
+      // clear code
+      bitOut.write(clearCode, bitLength);
+
+      var dataIndex = 0;
+
+      var s = String.fromCharCode(_data[dataIndex]);
+      dataIndex += 1;
+
+      while (dataIndex < _data.length) {
+
+        var c = String.fromCharCode(_data[dataIndex]);
+        dataIndex += 1;
+
+        if (table.contains(s + c) ) {
+
+          s = s + c;
+
+        } else {
+
+          bitOut.write(table.indexOf(s), bitLength);
+
+          if (table.size() < 0xfff) {
+
+            if (table.size() == (1 << bitLength) ) {
+              bitLength += 1;
+            }
+
+            table.add(s + c);
+          }
+
+          s = c;
+        }
+      }
+
+      bitOut.write(table.indexOf(s), bitLength);
+
+      // end code
+      bitOut.write(endCode, bitLength);
+
+      bitOut.flush();
+
+      return byteOut.toByteArray();
+    };
+
+    var lzwTable = function() {
+
+      var _map = {};
+      var _size = 0;
+
+      var _this = {};
+
+      _this.add = function(key) {
+        if (_this.contains(key) ) {
+          throw 'dup key:' + key;
+        }
+        _map[key] = _size;
+        _size += 1;
+      };
+
+      _this.size = function() {
+        return _size;
+      };
+
+      _this.indexOf = function(key) {
+        return _map[key];
+      };
+
+      _this.contains = function(key) {
+        return typeof _map[key] != 'undefined';
+      };
+
+      return _this;
+    };
+
+    return _this;
+  };
+
+  var createDataURL = function(width, height, getPixel) {
+    var gif = gifImage(width, height);
+    for (var y = 0; y < height; y += 1) {
+      for (var x = 0; x < width; x += 1) {
+        gif.setPixel(x, y, getPixel(x, y) );
+      }
+    }
+
+    var b = byteArrayOutputStream();
+    gif.write(b);
+
+    var base64 = base64EncodeOutputStream();
+    var bytes = b.toByteArray();
+    for (var i = 0; i < bytes.length; i += 1) {
+      base64.writeByte(bytes[i]);
+    }
+    base64.flush();
+
+    return 'data:image/gif;base64,' + base64;
+  };
+
+  //---------------------------------------------------------------------
+  // returns qrcode function.
+
+  return qrcode;
+}();
+
+// multibyte support
+!function() {
+
+  qrcode.stringToBytesFuncs['UTF-8'] = function(s) {
+    // http://stackoverflow.com/questions/18729405/how-to-convert-utf8-string-to-byte-array
+    function toUTF8Array(str) {
+      var utf8 = [];
+      for (var i=0; i < str.length; i++) {
+        var charcode = str.charCodeAt(i);
+        if (charcode < 0x80) utf8.push(charcode);
+        else if (charcode < 0x800) {
+          utf8.push(0xc0 | (charcode >> 6),
+              0x80 | (charcode & 0x3f));
+        }
+        else if (charcode < 0xd800 || charcode >= 0xe000) {
+          utf8.push(0xe0 | (charcode >> 12),
+              0x80 | ((charcode>>6) & 0x3f),
+              0x80 | (charcode & 0x3f));
+        }
+        // surrogate pair
+        else {
+          i++;
+          // UTF-16 encodes 0x10000-0x10FFFF by
+          // subtracting 0x10000 and splitting the
+          // 20 bits of 0x0-0xFFFFF into two halves
+          charcode = 0x10000 + (((charcode & 0x3ff)<<10)
+            | (str.charCodeAt(i) & 0x3ff));
+          utf8.push(0xf0 | (charcode >>18),
+              0x80 | ((charcode>>12) & 0x3f),
+              0x80 | ((charcode>>6) & 0x3f),
+              0x80 | (charcode & 0x3f));
+        }
+      }
+      return utf8;
+    }
+    return toUTF8Array(s);
+  };
+
+}();
+
+(function (factory) {
+  if (typeof define === 'function' && define.amd) {
+      define([], factory);
+  } else if (typeof exports === 'object') {
+      module.exports = factory();
+  }
+}(function () {
+    return qrcode;
+}));
+
+</script>
+<script>
+(function(){
+  var tasks = [
+    { name: '秒杀5.7万', base: "https://pages-fast.m.taobao.com/wow/z/app/ltao-fe/tbms-cooperation/home?disableProgress=true&From=times&disableNav=YES&scene=wt&spma=farm&spmb=46066528&bybtSceneId=babaFarmFertilizer&red_packet_channel=farmorder&taskhubType=tasktimehubcc&taskFrom=wulengjing&originQueryId=2147825d17904460254t0i4m3e0se6&fromToken=2Jwz17V05f7KKbXQz6urpKhK8JoU1UdUWUDUVURUJhWJ&hd_from_id=100085&prismTrace=101028&deliveryId=101028&sceneId=5387&itemIds=__ID__&spm=a2141.7631571.tbshopmod-photo_retouch.4&spm=a2141.7631565.tbshopmod-photo_retouch.1&spm=a2141.7631565.tbshopmod-photo_retouch.2" },
+    { name: '秒杀5.1万看号-部分4万', base: "https://pages-fast.m.taobao.com/wow/z/app/ltao-fe/tbms-cooperation/home?disableProgress=true&From=times&disableNav=YES&scene=wt&spma=farm&spmb=46066528&bybtSceneId=babaFarmFertilizer&red_packet_channel=farmorder&taskhubType=tasktimehubcc&taskFrom=wulengjing&originQueryId=2147825d17904460254t0i4m3e0se6&fromToken=2Jwz17V05f7KKbXQz6urpKhK8JoU1UdUWUDUVURUJhWJ&hd_from_id=100085&prismTrace=70424&deliveryId=70424&sceneId=7506&itemIds=__ID__&spm=a2141.7631571.tbshopmod-photo_retouch.9&spm=a2141.7631565.tbshopmod-photo_retouch.7&spm=a2141.7631565.tbshopmod-photo_retouch.4&spm=a2141.7631565.tbshopmod-photo_retouch.4" },
+    { name: '4.3万', base: "https://pages-fast.m.taobao.com/wow/z/app/ltao-fe/tbms-cooperation/home?x-ssr=true&disableNav=YES&x-preload=true&disableProgress=true&forceThemis=true&x-sec=wua&spma=farm&spmb=46066528&hd_from_id=100085&bybtSceneId=babaFarmFertilizer&red_packet_channel=farmorder&sceneId=7506&deliveryId=70424&implId=other_1364_3194018_101097_0&fromToken=1wllqZLHQdGzL8G5t9BZfbN1VuDU1U2UOURUXU1U0Z&taskhubType=taskhubcc&taskFrom=wulengjing&sourceType=other&itemIds=__ID__" },
+    { name: '秒杀13万入口', label: '部分号不是13万', base: "https://pages-fast.m.taobao.com/wow/z/app/ltao-fe/tbms-cooperation/home?spmb=xsmsxiadan02&red_packet_channel=true&spma=farm&tasktime=true&disableNav=YES&hd_from_id=100085&prismTrace=88506&deliveryId=88506&sceneId=5387&spm=a2141.7631565.tbshopmod-photo_retouch.5&spm=a2141.7631565.tbshopmod-photo_retouch.4" },
+    { name: '3万',   base: "https://pages-fast.m.taobao.com/wow/z/app/ltao-fe/tbms-cooperation/home?x-ssr=true&disableNav=YES&x-preload=true&disableProgress=true&forceThemis=true&x-sec=wua&spma=farm&spmb=46066528&hd_from_id=100085&bybtSceneId=babaFarmFertilizer&red_packet_channel=farmorder&sceneId=7506&deliveryId=68479&implId=other_1364_3194018_101097_0&fromToken=1wllqZLHQdGzL8G5t9BZfbN1VuDU1U2UOURUXU1U0Z&taskhubType=taskhubcc&taskFrom=wulengjing&sourceType=other&itemIds=__ID__" },
+    { name: '元宝',  base: "https://pages-fast.m.taobao.com/wow/z/app/ltao-fe/tbms-cooperation/home?x-ssr=true&pha_manifest=default&disableNav=YES&x-preload=true&disableProgress=true&disableRedirect=tr&x-sec=wua&asac=2A24229CRW8AFXDCFEMN20&spma=mspd&spmb=qdmsxiadan&prismTrace=90243&activityId=100129&awardIndex=1&cpcExpireSecond=259200&deliveryId=90243&fromToken=Lrl9lof9Pl9rdOVieanSq5oZuzUQUXUBUoU0UWUL7&implId=other_1306_0_90243_0&samplingRate=10&sceneId=9267&hd_from_id=100129&mediafrom=&spm=hbqd5.28668351.c1.d1&itemIds=__ID__"  }
+  ];
+
+  var input = document.getElementById('itemId');
+  // 「商品 ID」卡片已移除：ID 输入框改为隐藏字段，状态提示统一走口令解析卡片里的 #shareHint
+  var hint = document.getElementById('shareHint') || document.getElementById('hint');
+  var list = document.getElementById('qrlist');
+  var boxes = [];
+
+  var exportRow = document.getElementById('exportRow');
+  var exportBtn = document.getElementById('exportBtn');
+  var exportHint = document.getElementById('exportHint');
+  var exportPreview = document.getElementById('exportPreview');
+  var currentId = '';
+
+  function setExport(msg, cls){
+    if (!exportHint) return;
+    exportHint.textContent = msg || '';
+    exportHint.className = 'hint' + (cls ? ' ' + cls : '');
+  }
+
+  tasks.forEach(function(t){
+    var card = document.createElement('div');
+    card.className = 'card qrcard';
+    card.innerHTML =
+      '<div class="label qr-label">' + (t.label || t.name) + ' · 扫码打开任务页' + (t.note ? '<span class="qr-label-note qr-label-note-red">' + t.note + '</span>' : '') + '</div>' +
+      '<div class="qr-box"></div>' +
+      '<div class="tip">使用手机淘宝「扫一扫」扫描上方二维码 · 淘宝关注 <b style="color:var(--orange)">《乔克大叔的小卖铺》</b></div>' +
+      '<div class="btn-row"><button class="btn primary">浏览器打开</button></div>';
+    list.appendChild(card);
+    boxes.push({
+      name: t.name,
+      label: t.label || t.name,
+      note: t.note || '',
+      base: t.base,
+      card: card,
+      qrBox: card.querySelector('.qr-box'),
+      openBtn: card.querySelector('.btn'),
+      current: ''
+    });
+  });
+
+  function resetAll(){
+    hint.textContent = '';
+    hint.className = 'hint';
+    boxes.forEach(function(b){
+      b.card.className = 'card qrcard';
+      b.qrBox.innerHTML = '';
+      b.current = '';
+    });
+    currentId = '';
+    if (exportRow) exportRow.style.display = 'none';
+    if (exportPreview) exportPreview.innerHTML = '';
+    setExport('');
+  }
+
+  function update(){
+    var v = input.value.replace(/\D/g,'');
+    if (input.value !== v) input.value = v;
+    if (v.length === 0) { resetAll(); return; }
+    if (v.length < 6) {
+      hint.textContent = '商品 ID 位数不对，一般是 10 位以上的纯数字';
+      hint.className = 'hint err';
+      boxes.forEach(function(b){ b.card.className = 'card qrcard'; b.current = ''; });
+      currentId = '';
+      if (exportRow) exportRow.style.display = 'none';
+      return;
+    }
+    hint.textContent = '已生成全部 ' + boxes.length + ' 个二维码 ✓';
+    hint.className = 'hint ok';
+    currentId = v;
+    if (exportRow) exportRow.style.display = '';
+    if (exportPreview) exportPreview.innerHTML = '';
+    setExport('');
+    boxes.forEach(function(b){
+      b.current = b.base.replace('__ID__', v);
+      try {
+        var qr = qrcode(0, WM_ECL);
+        qr.addData(b.current);
+        qr.make();
+        b.qrBox.innerHTML = qr.createSvgTag({ cellSize: 5, margin: 2, scalable: true, wm: { text: WM_TEXT } });
+      } catch (e) {
+        b.qrBox.innerHTML = '<div style="color:#dc2626;font-size:13px;padding:20px">生成失败：' + e.message + '</div>';
+      }
+      var sv = b.qrBox.querySelector('svg');
+      if (sv) { sv.removeAttribute('width'); sv.removeAttribute('height'); sv.style.width = '240px'; sv.style.height = '240px'; }
+      b.card.className = 'card qrcard show';
+    });
+  }
+
+  input.addEventListener('input', update);
+  // 供「口令解析框」的清空按钮调用：清掉隐藏的商品 ID，收起全部卡片与长图区，
+  // 但不做 applyItemId 的 scrollIntoView（清空后不该把页面滚到列表）
+  window.clearItemId = function(){
+    input.value = '';
+    update();
+  };
+
+  list.addEventListener('click', function(e){
+    var btn = e.target.closest ? e.target.closest('.btn') : null;
+    if (!btn) return;
+    var card = btn.closest('.card');
+    var box = null;
+    boxes.forEach(function(b){ if (b.card === card) box = b; });
+    if (box && box.current) window.open(box.current, '_blank');
+  });
+
+  var LONG_FONT = '"PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,sans-serif';
+  var SHOP_NAME = '乔克大叔的小卖铺';
+
+  function drawRoundRect(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function loadImages(nodes, cb){
+    if (!nodes.length) { cb([]); return; }
+    var out = new Array(nodes.length), left = nodes.length;
+    function done(){ if (--left === 0) cb(out); }
+    for (var i = 0; i < nodes.length; i++){
+      (function(idx){
+        var im = new Image();
+        im.onload = function(){ out[idx] = im; done(); };
+        im.onerror = function(){ out[idx] = null; done(); };
+        im.src = nodes[idx].src;
+      })(i);
+    }
+  }
+
+  function buildLongImage(id, cb){
+    var CELL = 3, QUIET = 4, PAD = 40, GAP = 20, COLS = 3, CARD_PAD = 12;
+    var qrs = [], mods = [];
+    for (var i = 0; i < boxes.length; i++){
+      var q = qrcode(0, WM_ECL);
+      q.addData(boxes[i].base.replace('__ID__', id));
+      q.make();
+      qrs.push(q);
+      mods.push(q.getModuleCount());
+    }
+    var maxMods = Math.max.apply(null, mods);
+    var quietPx = QUIET * CELL;
+    var qrSize = maxMods * CELL + quietPx * 2;
+    var cardW = qrSize + CARD_PAD * 2;
+    var cardH = 44 + qrSize + 12 + 34;
+    var rows = Math.ceil(boxes.length / COLS);
+    var W = PAD * 2 + COLS * cardW + (COLS - 1) * GAP;
+    var headH = 168;
+    var gridTop = PAD + headH;
+    var gridH = rows * cardH + (rows - 1) * GAP;
+
+    var hbNodes = Array.prototype.slice.call(document.querySelectorAll('.hb-qr'));
+    var HB_GAP = 14;
+    var hbCols = Math.min(4, hbNodes.length);          // 每行最多 4 个，多了自动换行
+    var hbRows = hbNodes.length ? Math.ceil(hbNodes.length / hbCols) : 0;
+    var hbSize = 150;
+    if (hbNodes.length){
+      // 领红包码数量会变（当前 7 张），按可用宽度自适应，避免码超出版面被裁掉
+      var hbAvail = W - PAD * 2 - (hbCols - 1) * HB_GAP;
+      hbSize = Math.max(90, Math.min(150, Math.floor(hbAvail / hbCols)));
+    }
+    var hbGridH = hbRows ? (hbRows * hbSize + (hbRows - 1) * HB_GAP) : 0;
+    var footH = hbNodes.length ? (22 + 18 + hbGridH + 26 + 24) : 0;
+    var H = gridTop + gridH + (hbNodes.length ? 40 : 0) + footH + PAD;
+
+    loadImages(hbNodes, function(imgs){
+      var SCALE = (W * H * 4 > 12000000) ? 1 : 2;
+      var cv = document.createElement('canvas');
+      cv.width = W * SCALE;
+      cv.height = H * SCALE;
+      var ctx = cv.getContext('2d');
+      ctx.scale(SCALE, SCALE);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+      ctx.textAlign = 'center';
+
+      ctx.fillStyle = '#1a1a1a';
+      ctx.font = 'bold 38px ' + LONG_FONT;
+      ctx.fillText('淘宝任务二维码', W / 2, PAD + 44);
+      ctx.fillStyle = '#c0392b';
+      ctx.font = 'bold 24px ' + LONG_FONT;
+      ctx.fillText(SHOP_NAME, W / 2, PAD + 82);
+      ctx.fillStyle = '#666666';
+      ctx.font = 'normal 18px ' + LONG_FONT;
+      ctx.fillText('商品 ID：' + id, W / 2, PAD + 112);
+      ctx.fillStyle = '#888888';
+      ctx.font = 'normal 16px ' + LONG_FONT;
+      ctx.fillText('手机淘宝「扫一扫」扫码下单 · 关注店铺天天领红包', W / 2, PAD + 140);
+
+      for (var i = 0; i < boxes.length; i++){
+        var r = Math.floor(i / COLS), c = i % COLS;
+        var x = PAD + c * (cardW + GAP);
+        var y = gridTop + r * (cardH + GAP);
+
+        drawRoundRect(ctx, x + 0.5, y + 0.5, cardW - 1, cardH - 1, 16);
+        ctx.fillStyle = '#fcfcfc';
+        ctx.fill();
+        ctx.strokeStyle = '#e6e6e6';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = '#c0392b';
+        var tTitle = boxes[i].label || boxes[i].name;
+        var tNote = boxes[i].note || '';
+        // 备注若以档位名开头（如「6万大部分不给肥料了」），长图里去掉重复前缀
+        if (tNote && tTitle.indexOf(tNote) !== 0 && tNote.indexOf(tTitle) === 0){
+          tNote = tNote.slice(tTitle.length).replace(/^[，,·、\s]+/, '');
+        }
+        if (tNote) tTitle += ' · ' + tNote;
+        var tSize = 21;
+        ctx.font = 'bold ' + tSize + 'px ' + LONG_FONT;
+        // 标题过长（含红色备注时）自动缩字号，保证不出卡片
+        if (typeof ctx.measureText === 'function'){
+          while (tSize > 12 && ctx.measureText(tTitle).width > cardW - 16){
+            tSize--;
+            ctx.font = 'bold ' + tSize + 'px ' + LONG_FONT;
+          }
+        }
+        ctx.fillText(tTitle, x + cardW / 2, y + 30);
+
+        ctx.fillStyle = '#000000';
+        var qx = x + CARD_PAD + quietPx;
+        var qy = y + 44 + quietPx;
+        var n = qrs[i].getModuleCount();
+        for (var rr = 0; rr < n; rr++){
+          for (var cc = 0; cc < n; cc++){
+            if (qrs[i].isDark(rr, cc)) ctx.fillRect(qx + cc * CELL, qy + rr * CELL, CELL, CELL);
+          }
+        }
+        // 与页面内二维码保持一致：Q 级纠错 + 中央水印块
+        // 水印按「模块区边长」居中（qrs[i] 比 maxMods 小的档位不会被推到右下角）
+        drawWmCanvas(ctx, qx, qy, n * CELL, CELL);
+
+        ctx.fillStyle = '#8a8a8a';
+        ctx.font = 'normal 15px ' + LONG_FONT;
+        ctx.fillText('淘宝扫一扫 · 关注《' + SHOP_NAME + '》', x + cardW / 2, y + cardH - 14);
+      }
+
+      if (imgs.length){
+        var fy = gridTop + gridH + 40;
+        ctx.fillStyle = '#c0392b';
+        ctx.font = 'bold 24px ' + LONG_FONT;
+        ctx.fillText('扫码领红包', W / 2, fy + 22);
+        // 分行排布（每行最多 hbCols 个），每行按本行实际个数居中
+        for (var k = 0; k < imgs.length; k++){
+          var hbRow = Math.floor(k / hbCols), hbCol = k % hbCols;
+          var rowCnt = Math.min(hbCols, imgs.length - hbRow * hbCols);
+          var rowW = rowCnt * hbSize + (rowCnt - 1) * HB_GAP;
+          var rx = (W - rowW) / 2 + hbCol * (hbSize + HB_GAP);
+          var ry = fy + 40 + hbRow * (hbSize + HB_GAP);
+          if (imgs[k]) ctx.drawImage(imgs[k], rx, ry, hbSize, hbSize);
+        }
+        var sy = fy + 40 + hbGridH - hbSize;
+        ctx.fillStyle = '#8a8a8a';
+        ctx.font = 'normal 16px ' + LONG_FONT;
+        ctx.fillText('淘宝 / 支付宝扫一扫，天天可领', W / 2, sy + hbSize + 26);
+      }
+
+      cb(cv, W, H);
+    });
+  }
+
+  function downloadCanvas(cv, filename, done){
+    function fallback(){
+      try {
+        var a = document.createElement('a');
+        a.href = cv.toDataURL('image/png');
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        done();
+      } catch (e) { setExport('导出失败：' + e.message, 'err'); }
+    }
+    if (cv.toBlob){
+      cv.toBlob(function(blob){
+        if (!blob) { fallback(); return; }
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 3000);
+        done();
+      }, 'image/png');
+    } else { fallback(); }
+  }
+
+  if (exportBtn) exportBtn.addEventListener('click', function(){
+    if (!currentId) { setExport('请先输入商品 ID', 'err'); return; }
+    setExport('正在生成长图…');
+    exportBtn.disabled = true;
+    setTimeout(function(){
+      try {
+        buildLongImage(currentId, function(cv, w, h){
+          downloadCanvas(cv, '淘宝任务二维码_' + currentId + '_' + SHOP_NAME + '.png', function(){
+            setExport('长图已生成（' + w + ' × ' + h + '）并开始下载；手机上可长按下方图片保存到相册 ✓', 'ok');
+          });
+          if (exportPreview){
+            exportPreview.innerHTML = '';
+            var im = new Image();
+            im.src = cv.toDataURL('image/png');
+            im.style.cssText = 'width:100%;display:block;margin-top:10px;border:1px solid var(--line);border-radius:10px;';
+            exportPreview.appendChild(im);
+          }
+          exportBtn.disabled = false;
+        });
+      } catch (e) {
+        setExport('导出失败：' + e.message, 'err');
+        exportBtn.disabled = false;
+      }
+    }, 30);
+  });
+
+  window.applyItemId = function(id){
+    input.value = id;
+    update();
+    // ID 输入框已隐藏，解析成功后改为把结果列表滚进视野
+    try { document.getElementById('qrlist').scrollIntoView({ behavior:'smooth', block:'start' }); } catch (e) {}
+  };
+})();
+</script>
+<script>
+(function(){
+  var shareInput = document.getElementById('shareInput');
+  var shareHint = document.getElementById('shareHint');
+  var parseBtn = document.getElementById('parseBtn');
+  var OFFLINE = (location.protocol === 'file:');
+
+  if (OFFLINE) {
+    var shareCard = document.getElementById('shareCard');
+    if (shareCard) shareCard.querySelector('.label').textContent = '粘贴商品 ID 或含 id= 的商品链接（离线版）';
+    if (shareInput) shareInput.placeholder = '离线版：直接粘贴商品 ID（纯数字）；\n或粘贴含 id= 的完整商品链接，例如 https://item.taobao.com/item.htm?id=123456789012';
+    if (parseBtn) parseBtn.textContent = '提取并生成';
+  }
+
+  function setHint(msg, cls){ shareHint.textContent = msg; shareHint.className = 'hint' + (cls ? ' ' + cls : ''); }
+
+  function idFromText(t){
+    var m = t.match(/itemIds?=(\d{6,})/i) || t.match(/shareDetailItemId=(\d{6,})/i)
+         || t.match(/["']itemId["']\s*[:=]\s*["']?(\d{6,})/i)
+         || t.match(/item\.htm\?[^"'\s]*?\bid=(\d{6,})/i)
+         || t.match(/[?&]id=(\d{6,})/i);
+    return m ? m[1] : null;
+  }
+
+  function urlFromText(t){
+    var m = t.match(/https?:\/\/[^\s"'<>）】]+/i);
+    return m ? m[0].replace(/[，。、）】\u3002]+$/, '') : null;
+  }
+
+  function use(id){
+    if (window.applyItemId) window.applyItemId(id);
+    setHint('已提取商品 ID：' + id + '，已填入下方并生成全部二维码 ✓', 'ok');
+  }
+
+  function parse(){
+    var raw = (shareInput.value || '').trim();
+    if (!raw) { setHint('请先粘贴淘宝分享链接 / 分享文案，或直接输入商品 ID（纯数字）', 'err'); return; }
+    // 纯数字（允许夹杂空格 / 逗号）→ 直接当商品 ID 用；在线版与离线版都支持
+    var digits = raw.replace(/[\s,，]/g, '');
+    if (/^\d{6,}$/.test(digits)) { use(digits); return; }
+    var direct = idFromText(raw);
+    if (direct) { use(direct); return; }
+    var url = urlFromText(raw);
+    if (!url) {
+      setHint('没找到商品 ID：请粘贴淘宝分享的整段文字，或直接输入纯数字的商品 ID', 'err');
+      return;
+    }
+    if (OFFLINE) {
+      setHint('离线版无法解析淘宝短链：请先点开该链接，复制浏览器地址栏里含 id= 的完整网址，再粘贴进来', 'err');
+      return;
+    }
+    setHint('正在解析链接…');
+    fetch('/api/resolve?url=' + encodeURIComponent(url))
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (d && d.ok && d.itemId) { use(d.itemId); }
+        else { setHint('解析失败：' + ((d && d.error) ? d.error : '未知错误'), 'err'); }
+      })
+      .catch(function(){ setHint('解析服务不可用，请改用含 id= 的商品链接粘贴', 'err'); });
+  }
+
+  parseBtn.addEventListener('click', parse);
+  shareInput.addEventListener('keydown', function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); parse(); }
+  });
+  document.getElementById('pasteBtn').addEventListener('click', function(){
+    if (OFFLINE || !navigator.clipboard || !navigator.clipboard.readText) { setHint('请在输入框里长按选择“粘贴”（离线版不支持一键读取剪贴板）', 'err'); return; }
+    navigator.clipboard.readText().then(function(t){
+      shareInput.value = t || '';
+      if (t && t.trim()) parse();
+    }).catch(function(){ setHint('读取剪贴板被拒绝，请手动粘贴（Ctrl+V）', 'err'); });
+  });
+
+  // 清空：文案框 + 隐藏的商品 ID + 已生成的二维码卡片 / 长图区一起收掉，提示也一并清掉
+  var shareClearBtn = document.getElementById('shareClearBtn');
+  if (shareClearBtn) shareClearBtn.addEventListener('click', function(){
+    shareInput.value = '';
+    if (window.clearItemId) window.clearItemId();
+    setHint('');
+    try { shareInput.focus(); } catch (e) {}
+  });
+})();
+</script>
+
+<script>
+(function(){
+  var bar = document.getElementById('tabBar');
+  var paneD = document.getElementById('paneDefault');
+  var paneB = document.getElementById('paneBb13');
+  if (!bar || !paneD || !paneB) return;
+  bar.addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('.tabbtn') : null;
+    if (!b) return;
+    var isB = b.getAttribute('data-tab') === 'bb';
+    paneD.style.display = isB ? 'none' : '';
+    paneB.style.display = isB ? '' : 'none';
+    var btns = bar.querySelectorAll('.tabbtn');
+    for (var i = 0; i < btns.length; i++){
+      var act = (btns[i].getAttribute('data-tab') === 'bb') === isB;
+      btns[i].className = 'tabbtn' + (act ? ' active' : '');
+    }
+  });
+})();
+</script>
+<script>
+(function(){
+  var BB57_TPL = 'https://pages-fast.m.taobao.com/wow/bz/jingmi/1993?ut_sk=1.YdHblxO5KYIDACtPmL%2BvOwx0_21380790_1791129541990.Copy.baibupindao&memkvKey=5387_1791129825092&fromToken=DzXMoMaflGB80j6KHNX5uoAOgT9UdU2U8UjU7UAUKk&forceThemis=true&sceneId=5387&disableProgress=true&spmb=46066528&red_packet_channel=farmorder&implId=other_1373_3194018_101097_0&originQueryId=213e07c517911298168478610e124f&bybtSceneId=babaFarmFertilizer&spm=farm.13840689.tasklist-pentaprism.101097&sourceType=other&x-ssr=true&farmMemkv=true&suid=AD54C20F-DA64-4D8F-8CBC-C5C20664DE06&prismTrace=101097&x-preload=true&deliveryId=101097&disableNav=YES&hd_from_id=100085&un=3b0397dc6ec6236e4c6e4bed9157ce66&share_crt_v=1&un_site=0&sp_tk=bnJKOFRwWUczdFk%3D&cpp=1&shareurl=true&short_name=h.8C8Aked&app=macos_safari&spm=a2141.7631565.tbshopmod-img_poster.0&scm=1007.31166.351408.0&pvid=ec225a89-97f8-4c36-8db8-218a1ae6b343&itemIds=bbbbb&spm=a2141.7631565.tbshopmod-series_title_link.0';
+  var OFFLINE = (location.protocol === 'file:');
+  var input = document.getElementById('bbPinInput');
+  var hint = document.getElementById('bbPinHint');
+  var btn = document.getElementById('bbPinParseBtn');
+  var pasteBtn = document.getElementById('bbPinPasteBtn');
+  var clearBtn = document.getElementById('bbPinClearBtn');
+  var result = document.getElementById('bbPinResult');
+  var qr57 = document.getElementById('bb57PinQr');
+  if (!input || !btn) return;
+
+  function setHint(m, c){ hint.textContent = m; hint.className = 'hint' + (c ? ' ' + c : ''); }
+  function draw(box, data, size){
+    try {
+      var qr = qrcode(0, WM_ECL);
+      qr.addData(data);
+      qr.make();
+      box.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true, wm: { text: WM_TEXT } });
+      var sv = box.querySelector('svg');
+      if (sv){ sv.removeAttribute('width'); sv.removeAttribute('height'); sv.style.width = size + 'px'; sv.style.height = size + 'px'; }
+      return true;
+    } catch(e){ return false; }
+  }
+  function idFromText(t){
+    var m = t.match(/itemIds?=(\d{6,})/i) || t.match(/shareDetailItemId=(\d{6,})/i)
+         || t.match(/["']itemId["']\s*[:=]\s*["']?(\d{6,})/i)
+         || t.match(/item\.htm\?[^"'\s]*?\bid=(\d{6,})/i)
+         || t.match(/[?&]id=(\d{6,})/i);
+    return m ? m[1] : null;
+  }
+  function urlFromText(t){
+    var m = t.match(/https?:\/\/[^\s"'<>）】]+/i);
+    return m ? m[0].replace(/[，。、）】\u3002]+$/, '') : null;
+  }
+  function render(id){
+    if (!draw(qr57, BB57_TPL.replace('bbbbb', id), 260)){ setHint('生成失败，请重试', 'err'); return; }
+    result.style.display = '';
+    setHint('已指定商品 ' + id + '，「百亿补贴 5.7万」二维码已生成 ✓', 'ok');
+    try { result.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+  }
+  function parse(){
+    var raw = (input.value || '').trim();
+    if (!raw){ setHint('请先粘贴百亿补贴商品的分享文案或商品 ID', 'err'); return; }
+    var direct = idFromText(raw);
+    if (direct){ render(direct); return; }
+    if (/^\d{6,}$/.test(raw)){ render(raw); return; }
+    var url = urlFromText(raw);
+    if (!url){
+      setHint('没找到链接，请把分享的整段文字粘进来，或直接粘贴纯数字的商品 ID', 'err'); return;
+    }
+    if (OFFLINE){
+      setHint('离线版无法解析淘宝短链：请先点开该链接，复制浏览器地址栏里含 id= 的完整网址再粘贴；或直接粘贴商品 ID', 'err'); return;
+    }
+    setHint('正在解析链接…');
+    fetch('/api/resolve?url=' + encodeURIComponent(url))
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (d && d.ok && d.itemId){ render(d.itemId); }
+        else { setHint('解析失败：' + ((d && d.error) ? d.error : '未知错误'), 'err'); }
+      })
+      .catch(function(){ setHint('解析服务不可用，请改用含 id= 的商品链接粘贴', 'err'); });
+  }
+  btn.addEventListener('click', parse);
+  input.addEventListener('keydown', function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); parse(); }
+  });
+  if (pasteBtn) pasteBtn.addEventListener('click', function(){
+    if (OFFLINE || !navigator.clipboard || !navigator.clipboard.readText){ setHint('请在输入框里长按选择“粘贴”（离线版不支持一键读取剪贴板）', 'err'); return; }
+    navigator.clipboard.readText().then(function(t){
+      input.value = t || '';
+      setHint('已读取剪贴板，点击「解析并生成二维码」');
+    }).catch(function(){ setHint('读取剪贴板失败，请手动粘贴', 'err'); });
+  });
+  if (clearBtn) clearBtn.addEventListener('click', function(){
+    input.value = '';
+    if (result) result.style.display = 'none';
+    if (qr57) qr57.innerHTML = '';
+    setHint('');
+  });
+
+  // ---- 百补6万2次：固定入口码（链接里没有 itemIds，不可指定商品，与 6万秒杀共用次数）----
+  // 页面加载即出码，不用输入任何东西。
+  var BB62_URL = 'https://pages-fast.m.taobao.com/wow/bz/jingmi/1993?sceneId=10021&fromToken=2Jwz17V05f7KKbXQz6urpKhK8JoU1UdUWUDUVURUJhWJ&deliveryId=104283&prismTrace=104283&red_packet_channel=farmorder&bybtSceneId=babaFarmFertilizer&farmMemkv=true&spm=a2141.7631565.tbshopmod-series_title_link.0';
+  var qr62 = document.getElementById('bb62QrBox');
+  var open62 = document.getElementById('bb62OpenBtn');
+  if (qr62) draw(qr62, BB62_URL, 240);
+  if (open62) open62.addEventListener('click', function(){ window.open(BB62_URL, '_blank'); });
+})();
+</script>
+<script>
+(function(){
+  function legacyCopy(text){
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.left = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    var ok = false;
+    try {
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      ok = document.execCommand('copy');
+    } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+  function copyText(text){
+    if (navigator.clipboard && navigator.clipboard.writeText && location.protocol !== 'file:'){
+      return navigator.clipboard.writeText(text).then(function(){ return true; }, function(){ return legacyCopy(text); });
+    }
+    return Promise.resolve(legacyCopy(text));
+  }
+  function bindCopy(btn, text, cls, label, app){
+    if (!btn) return;
+    app = app || '淘宝';
+    btn.addEventListener('click', function(){
+      copyText(text || '').then(function(ok){
+        btn.innerHTML = ok ? '已复制 ✓<br>去' + app + '粘贴即可打开' : '复制失败<br>请长按页面手动复制';
+        btn.className = cls + (ok ? ' done' : '');
+        clearTimeout(btn._t);
+        btn._t = setTimeout(function(){ btn.innerHTML = label; btn.className = cls; }, 2200);
+      });
+    });
+  }
+
+  bindCopy(document.getElementById('shopCopyBtn'),
+    '【淘宝】07£KwSSfsLA89d✔ https://m.tb.cn/h.7YTa2ECwqJOLASh  CZ193 乔克大叔的小卖铺\n点击链接直接打开 或者 淘宝搜索直接打开',
+    'shop-copy-btn', '点击复制<br>打开淘宝直达乔克店铺首页');
+
+  // 底部 2×2 模块里的「天猫1元抵扣抽纸」复制按钮
+  // ⚠️ 类名走 quick-tile（不再是 farm-copy-btn）；第 4 个参数是点击后 2.2s 还原的 innerHTML，
+  //    必须和 HTML 里的 span 结构完全一致，否则还原后按钮排版会散掉。
+  bindCopy(document.getElementById('tmCopyBtn'),
+    '48￥ MF278 bmnRTH03JPx￥ https://m.tb.cn/h.jcaw4NI  点击“打开”查看浏览商品页面',
+    'quick-tile quick-tile-tm',
+    '<span class="quick-tile-main">天猫1元抵扣抽纸</span><span class="quick-tile-tip">点击复制 淘宝打开</span>');
+
+  // 点淘1元 攻略玩法弹窗里的「复制口令」按钮（口令与二维码内容完全一致）
+  bindCopy(document.getElementById('dyCopyBtn'),
+    '57￥ MF168 uNDrTF84OdK￥ https://m.tb.cn/h.jXSoSs1  点淘福利攻略',
+    'modal-copy-btn', '复制口令 点淘打开', '点淘');
+
+  // 领红包模块（2026-10-31：7 条淘宝口令 + 末位 1 条京东双11红包口令）
+  var HB_TEXTS = [
+    '09￥ CZ057 lBPcTAMSGCz￥ https://m.tb.cn/h.j64Wrue  淘宝签到领福利',
+    '78￥ CZ005 CXyiTAMieLH￥ https://m.tb.cn/h.jgMMQy3  淘宝省钱购',
+    '09￥ CZ009 ounPTAMRc1B￥ https://m.tb.cn/h.jUXYCCa  淘宝福利购',
+    '07￥ CZ007 fSPkTAM8noL￥ https://m.tb.cn/h.jgMoF1h  淘宝秒杀福利',
+    '17￥ HU108 gBTITAMj8xD￥ https://m.tb.cn/h.jgMpdyR  猫超省钱购',
+    '49￥ CZ225 TlDKTAMQDw1￥ https://m.tb.cn/h.j54cDA7  天喵超市福利',
+    '49￥ CZ321 aGuHTAM99RZ￥ https://m.tb.cn/h.j645SWf  百亿补贴',
+    // 末位京东口令：只能在京东 App 里粘贴，不出二维码（下面只给淘宝口令出码）
+    '15:/！W9BcG4e9lHhVuX2m！ CA3576 ，↗⤴️īng►諌抢紅包，购痛快~最高26888元紅包等你来！'
+  ];
+  var hbBtns = document.querySelectorAll('.hb-copy-btn');
+  for (var k = 0; k < hbBtns.length; k++){
+    bindCopy(hbBtns[k], HB_TEXTS[k], 'hb-copy-btn', hbBtns[k].innerHTML, hbBtns[k].getAttribute('data-app') || '淘宝');
+  }
+
+  // 领红包二维码：原先写死在 HTML 里的 base64 图（占了 143KB），
+  // 口令一换图就跟着作废，现在改成按 HB_TEXTS 现场生成——以后只改上面的数组，码和图永远一致。
+  // 京东那条跳过：京东口令扫进淘宝没用，长图页脚只放「淘宝 / 支付宝扫一扫」能扫的码。
+  // 口令含中文与全角「￥」，必须临时切 UTF-8 编码，出完立刻还原（否则扫出来是乱码）。
+  (function(){
+    var src = document.getElementById('hbQrSrc');
+    if (!src || typeof qrcode !== 'function') return;
+    var texts = [];
+    for (var n = 0; n < hbBtns.length; n++){
+      if ((hbBtns[n].getAttribute('data-app') || '淘宝') !== '淘宝') continue;
+      if (HB_TEXTS[n]) texts.push(HB_TEXTS[n]);
+    }
+    var latin1 = qrcode.stringToBytes;
+    try {
+      if (qrcode.stringToBytesFuncs && qrcode.stringToBytesFuncs['UTF-8']){
+        qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+      }
+      for (var i = 0; i < texts.length; i++){
+        var img = document.createElement('img');
+        img.className = 'hb-qr';
+        img.alt = '领红包二维码 ' + (i + 1);
+        try {
+          var qr = qrcode(0, WM_ECL);
+          qr.addData(texts[i]);
+          qr.make();
+          img.src = qr.createDataURL(4, 12, { text: WM_TEXT });
+        } catch (e) {}
+        src.appendChild(img);
+      }
+    } finally { qrcode.stringToBytes = latin1; }
+  })();
+
+  // 双11 红包口令卡片（跑马灯上方，2×2 四个按钮）
+  var D11_CARD_TEXTS = [
+    '07￥ HU006 K6NvTH1UmiA￥ https://m.tb.cn/h.jbWNO1h  双11超级红包',
+    '69￥ CZ028 5geFTH15Zb9￥ https://m.tb.cn/h.j02QSAQ  双11购物车优惠发现',
+    '08￥ MF278 F6MpTH15svg￥ https://m.tb.cn/h.jYPf4jy  双11蓄水期品牌U享限时红包',
+    '57￥ HU293 6HlWTH1Ti8P￥ https://m.tb.cn/h.jcbCQyJ  快消双11蓄水期红包'
+  ];
+  var d11CardBtns = document.querySelectorAll('.d11-copy-btn');
+  for (var n = 0; n < d11CardBtns.length; n++){
+    bindCopy(d11CardBtns[n], D11_CARD_TEXTS[n], 'd11-copy-btn', d11CardBtns[n].innerHTML);
+  }
+
+  // ---- 双11红包弹窗：每次刷新页面都弹出，可关闭 ----
+  // 2026-11-09 20:26 起恢复单条固定口令（此前的 19:20 分时段双条已按用户要求取消）。
+  // 数组结构保留：以后要加条目或做分时段，塞对象并加 fromMin/toMin（当天分钟数）即可，下面的选取会自动生效。
+  var D11_OFFERS = [
+    {
+      title: '11号晚8点 加码红包🧧，记得来领。',
+      sub: '复制口令，打开淘宝即可领取',
+      btn: '复制口令 淘宝打开',
+      app: '淘宝',
+      text: '77￥ MF278 yyuI6dc3o2O￥ https://m.tb.cn/h.jjuhNix  双11超级红包限时加码'
+    }
+  ];
+  var mask = document.getElementById('d11Mask');
+  var d11Close = document.getElementById('d11Close');
+  var d11CopyBtn = document.getElementById('d11CopyBtn');
+  var d11Title = document.getElementById('d11Title');
+  var d11Sub = document.getElementById('d11Sub');
+  if (mask){
+    // 按时间窗选条目：命中 fromMin <= 当前分钟 < toMin 的第一条；无时间窗的条目恒命中（当前只有一条）
+    var _now = new Date();
+    var nowMin = _now.getHours() * 60 + _now.getMinutes();
+    var offer = D11_OFFERS[0];
+    for (var di = 0; di < D11_OFFERS.length; di++){
+      var _o = D11_OFFERS[di];
+      if ((_o.fromMin == null || nowMin >= _o.fromMin) && (_o.toMin == null || nowMin < _o.toMin)){ offer = _o; break; }
+    }
+    // app 为「京东」时走紫色主题（标签 / 标题 / 按钮统一换紫），淘宝保持红色（当前恒为淘宝）
+    var d11Box = mask.querySelector('.modal-box');
+    if (d11Box) d11Box.className = 'modal-box' + (offer.app === '京东' ? ' theme-jd' : '');
+    // 先把本次要展示的文案写进弹窗，再打开，避免出现内容闪变
+    if (d11Title) d11Title.innerHTML = offer.title;
+    if (d11Sub) d11Sub.innerHTML = offer.sub;
+    if (d11CopyBtn) d11CopyBtn.innerHTML = offer.btn;
+    var openModal = function(){
+      mask.className = 'modal-mask';                 // 去掉 hide
+      try { document.body.style.overflow = 'hidden'; } catch (e) {}
+    };
+    var closeModal = function(){
+      mask.className = 'modal-mask hide';
+      try { document.body.style.overflow = ''; } catch (e) {}
+    };
+    // 每次加载/刷新都弹出（不写 localStorage、不加任何记忆）
+    openModal();
+    if (d11Close) d11Close.addEventListener('click', closeModal);
+    // 点遮罩空白处关闭（点弹窗本体不关）
+    mask.addEventListener('click', function(e){ if (e.target === mask) closeModal(); });
+    // ESC 关闭
+    document.addEventListener('keydown', function(e){
+      if ((e.key === 'Escape' || e.keyCode === 27) && mask.className.indexOf('hide') < 0) closeModal();
+    });
+    bindCopy(d11CopyBtn, offer.text, 'modal-copy-btn', offer.btn, offer.app);
+  }
+
+  // ---- 跑马灯速度：按实测宽度换算时长，保证「每秒滚动多少像素」恒定 ----
+  // 这样以后改文案（变长/变短）都不用再手调 CSS 里的秒数；改速度只改 SPEED。
+  (function(){
+    var track = document.querySelector('.marquee-track');
+    if (!track) return;
+    var SPEED = 80;                       // 目标速度：像素/秒（原约 47，现约 80）
+    var apply = function(){
+      var w = track.getBoundingClientRect().width;
+      if (!w) return;
+      var dist = w / 2;                   // 动画从 translateX(0) 到 -50%，位移 = 轨道的一半
+      var dur = dist / SPEED;
+      track.style.webkitAnimationDuration = dur + 's';
+      track.style.animationDuration = dur + 's';
+    };
+    apply();
+    window.addEventListener('load', apply);     // 字体加载完成后宽度可能变，重算一次
+    window.addEventListener('orientationchange', apply);
+  })();
+})();
+</script>
+<script>
+(function(){
+  // ---- 农场 / 猫卡 三个固定入口：与商品 ID 无关的纯静态码，不走 tasks 数组 ----
+  var FARM_QR = [
+    { name: '农场丰收16万(2次)', url: 'https://kus.m.taobao.com/path_1693379119336?ffs=&activityId=100085&adScene=tmall-farm-feeds-self-own&adTrace=125400501040003__item_search.order__213e070617916806302973532e187d__N__5__1&awardIndex=1&bucketNo=111farmDynamicRuleVer4&channelSrp=hudong_bbnc6&cloudSailSid=dc51c521ffc4e7006acae076003de2ee&deliveryId=90722&disableNav=YES&enableRedPacket=1&farmMemkv=true&feature=1&from=mp_history&fromToken=ogQwJwdF0QdAz9Wqt6njCxBZNhOUBU8UdU2UnUvSJ0&hdSecurity=1&hd_from_id=100085&implId=cloudsail_1379_125400501040003_90722_0&isDynamicFert=1&k_u2topic_kgb=1&k_use_rp=1&keyword=%E6%8A%BD%E7%BA%B8&memkvKey=5387_1791680634063&orderTask=1&prismTrace=90722&ptsm=order.7980.75079&samplingRate=10&sceneId=5387&settleTime=0&settleType=afterTime&shortTfs=144045a5d36b2945165726355eb2b0f7&spm=farm.26936491.0.0&stay_track_bucket=0' },
+    { name: '10万猫卡入口1', url: 'https://kus.m.taobao.com/path_1693379119336?k_u2topic_kgb=1&disableNav=YES&stay_track_bucket=0&orderTask=1&keyword=%E7%BA%B8%E5%B7%BE&from=mp_input&channelSrp=hudong_bbnc&bucketNo=21427416farmDynamicRuleVer1&ptsm=order.7980.75085&isDynamicFert=1&hdSecurity=1&settleType=afterTime&settleTime=0&ffs=&adScene=tmall-farm-task-list&prismTrace=46316&farmMemkv=true&memkvKey=5387_1730952161004&activityId=100085&awardIndex=1&deliveryId=46316&implId=cloudsail_676_125400501040003_46316_0&samplingRate=10&sceneId=5387&hd_from_id=100085&spm=a2141.7631565.tbshopmod-photo_retouch.2&spm=a2141.7631565.tbshopmod-photo_retouch.0#keyword=%E5%A4%A9%E7%8C%AB%E8%B6%85%E5%B8%82%E5%8D%A1&from=sp_input' },
+    { name: '10万猫卡入口2', url: 'https://kus.m.taobao.com/path_1693379119336?spm=a2141.7631565.tbshopmod-photo_retouch.3&k_u2topic_kgb=1&disableNav=YES&hudongpltbucket=1&stay_track_bucket=0&orderTask=1&from=mp_history&keyword=%E5%A4%A9%E7%8C%AB%E8%B6%85%E5%B8%82%E5%8D%A1&channelSrp=hudong_bbnc&adScene=tmall-farm-task-list&activityId=100085&deliveryId=46316&isDynamicFert=1&sceneId=5387&directUrl=https%3A%2F%2Fku.m.taobao.com%2Fsearch%2Fm.html%3FdisableNav%3DYES%26amp%3BchannelSpmA%3Dfarm%26amp%3BchannelSpmB%3D26936491%26amp%3BchannelSrp%3Dhudong_bbnc%26amp%3BbucketNo%3D21427416farmDynamicRuleVer1%26amp%3Bptsm%3Dorder.7980.75085%26amp%3BisDynamicFert%3D1%26amp%3BhdSecurity%3D1%26amp%3Bepid%3Dmm_12852562_1778064_110152850014%26amp%3BsettleType%3DafterTime%26amp%3BsettleTime%3D0%26amp%3Bffs%3D%26amp%3BadScene%3Dtmall-farm-task-list%26amp%3BprismTrace%3D46316%26amp%3BfarmMemkv%3Dtrue%26amp%3BmemkvKey%3D5387_1730952161004%26amp%3BactivityId%3D100085%26amp%3BawardIndex%3D1%26amp%3BdeliveryId%3D46316%26amp%3BimplId%3Dcloudsail_676_125400501040003_46316_0%26amp%3BsamplingRate%3D10%26amp%3BsceneId%3D5387%26amp%3Bhd_from_id%3D100085&ptsm=order.7980.75085&version=9.8.400&ttid=700145@tbsellerworkbench_android_9.8.400&awardIndex=1&memkvKey=5387_1730952161004&samplingRate=10&hd_from_id=100085&implId=cloudsail_676_125400501040003_46316_0&prismTrace=46316' }
+  ];
+
+  var mask = document.getElementById('farmMask');
+  var openBtn = document.getElementById('farmOpenBtn');
+  var closeBtn = document.getElementById('farmClose');
+  var list = document.getElementById('farmQrList');
+  var loading = document.getElementById('farmLoading');
+  var built = false;
+
+  function build(){
+    if (built || !list || typeof qrcode !== 'function') return;
+    built = true;
+    // 三条链接极长（816 / 682 / 1443 字符），SVG 是逐模块生成 rect，三条合计几百 KB 会让弹窗又卡又重；
+    // createDataURL 出 GIF（纯 JS 编码器，不依赖 canvas，离线版/WebView 通用）只要几十 KB。
+    FARM_QR.forEach(function(item){
+      var wrap = document.createElement('div');
+      wrap.className = 'farm-item';
+      var name = document.createElement('div');
+      name.className = 'farm-name';
+      name.textContent = item.name;
+      var box = document.createElement('div');
+      box.className = 'farm-qrbox';
+      var img = document.createElement('img');
+      img.className = 'farm-qr';
+      img.alt = item.name + ' 二维码';
+      try {
+        var qr = qrcode(0, WM_ECL);
+        qr.addData(item.url);
+        qr.make();
+        img.src = qr.createDataURL(4, 12, { text: WM_TEXT });
+      } catch (e) {}
+      box.appendChild(img);
+      wrap.appendChild(name);
+      wrap.appendChild(box);
+      list.appendChild(wrap);
+    });
+    if (loading && loading.parentNode) loading.parentNode.removeChild(loading);
+  }
+
+  function open(){
+    if (!mask) return;
+    build();                                   // 首次打开时才生成，避免拖慢首屏
+    mask.className = 'modal-mask';
+    try { document.body.style.overflow = 'hidden'; } catch (e) {}
+  }
+  function close(){
+    if (!mask) return;
+    mask.className = 'modal-mask hide';
+    try { document.body.style.overflow = ''; } catch (e) {}
+  }
+
+  if (openBtn) openBtn.addEventListener('click', open);
+  if (closeBtn) closeBtn.addEventListener('click', close);
+  if (mask){
+    mask.addEventListener('click', function(e){ if (e.target === mask) close(); });
+    document.addEventListener('keydown', function(e){
+      if ((e.key === 'Escape' || e.keyCode === 27) && mask.className.indexOf('hide') < 0) close();
+    });
+  }
+})();
+
+(function(){
+  // ---- 秒杀30万肥料玩法：单张固定码弹窗（与商品 ID 无关）----
+  var FERT_URL = 'https://shop.m.taobao.com/shop/sr.htm?p=7qhXi_3S92N_8_wjpOh';
+  var mask = document.getElementById('fertMask');
+  var openBtn = document.getElementById('fertOpenBtn');
+  var closeBtn = document.getElementById('fertClose');
+  var box = document.getElementById('fertQrBox');
+  var built = false;
+
+  function build(){
+    if (built || !box || typeof qrcode !== 'function') return;
+    built = true;
+    // 链接只有 52 字符，模块数少 → 直接出 SVG（清晰、体积小），不用 GIF
+    try {
+      var qr = qrcode(0, WM_ECL);
+      qr.addData(FERT_URL);
+      qr.make();
+      box.innerHTML = qr.createSvgTag({ cellSize: 8, margin: 2, scalable: true, wm: { text: WM_TEXT } });
+      var sv = box.querySelector('svg');
+      if (sv){ sv.style.width = '100%'; sv.style.height = 'auto'; }
+    } catch (e) {}
+  }
+
+  function open(){
+    if (!mask) return;
+    build();                                   // 首次打开时才生成，避免拖慢首屏
+    mask.className = 'modal-mask';
+    try { document.body.style.overflow = 'hidden'; } catch (e) {}
+  }
+  function close(){
+    if (!mask) return;
+    mask.className = 'modal-mask hide';
+    try { document.body.style.overflow = ''; } catch (e) {}
+  }
+
+  if (openBtn) openBtn.addEventListener('click', open);
+  if (closeBtn) closeBtn.addEventListener('click', close);
+  if (mask){
+    mask.addEventListener('click', function(e){ if (e.target === mask) close(); });
+    document.addEventListener('keydown', function(e){
+      if ((e.key === 'Escape' || e.keyCode === 27) && mask.className.indexOf('hide') < 0) close();
+    });
+  }
+})();
+(function(){
+  // ---- 点淘1元 攻略玩法：单张固定码弹窗（与商品 ID 无关）----
+  // ⚠️ 这是全页唯一一条「口令文本」二维码：含全角 ￥ 与中文，默认的 Latin-1 编码会把它们
+  //    截成错误字节（扫出来是乱码），所以出码时临时切到 qrcode 自带的 UTF-8 表，出完立刻还原。
+  var DY_TEXT = '57￥ MF168 uNDrTF84OdK￥ https://m.tb.cn/h.jXSoSs1  点淘福利攻略';
+  var mask = document.getElementById('dyMask');
+  var openBtn = document.getElementById('dyOpenBtn');
+  var closeBtn = document.getElementById('dyClose');
+  var box = document.getElementById('dyQrBox');
+  var built = false;
+
+  function build(){
+    if (built || !box || typeof qrcode !== 'function') return;
+    built = true;
+    var latin1 = qrcode.stringToBytes;
+    try {
+      if (qrcode.stringToBytesFuncs && qrcode.stringToBytesFuncs['UTF-8']){
+        qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+      }
+      var qr = qrcode(0, WM_ECL);
+      qr.addData(DY_TEXT);
+      qr.make();
+      box.innerHTML = qr.createSvgTag({ cellSize: 8, margin: 2, scalable: true, wm: { text: WM_TEXT } });
+      var sv = box.querySelector('svg');
+      if (sv){ sv.style.width = '100%'; sv.style.height = 'auto'; }
+    } catch (e) {} finally { qrcode.stringToBytes = latin1; }
+  }
+
+  function open(){
+    if (!mask) return;
+    build();                                   // 首次打开时才生成，避免拖慢首屏
+    mask.className = 'modal-mask';
+    try { document.body.style.overflow = 'hidden'; } catch (e) {}
+  }
+  function close(){
+    if (!mask) return;
+    mask.className = 'modal-mask hide';
+    try { document.body.style.overflow = ''; } catch (e) {}
+  }
+
+  if (openBtn) openBtn.addEventListener('click', open);
+  if (closeBtn) closeBtn.addEventListener('click', close);
+  if (mask){
+    mask.addEventListener('click', function(e){ if (e.target === mask) close(); });
+    document.addEventListener('keydown', function(e){
+      if ((e.key === 'Escape' || e.keyCode === 27) && mask.className.indexOf('hide') < 0) close();
+    });
+  }
+})();
+</script>
+</body>
+</html>
