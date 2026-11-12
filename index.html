@@ -3359,13 +3359,20 @@ window.TBParse = (function(){
 
   function use(id){
     if (P) P.hideShortHelp();
+    lastShort = '';
     if (window.applyItemId) window.applyItemId(id);
     setHint('已提取商品 ID：' + id + '，已填入下方并生成全部二维码 ✓', 'ok');
   }
 
   // 短链引导：打开一次拿到真实商品地址，复制地址栏回来自动识别
+  var lastShort = '';
   function askShort(url){
-    setHint('这是淘宝短链，网页版没法直接展开（静态托管无后端）：点下面「打开链接取商品 ID」→ 商品页出来后复制地址栏网址 → 回到本页点「读取剪贴板」', 'err');
+    if (url && url === lastShort) {
+      setHint('剪贴板里还是那条短链。请在打开后的商品页里复制地址栏网址（形如 item.taobao.com/item.htm?id=… 或 a.m.taobao.com/i123456789.htm），再点「读取剪贴板」', 'err');
+    } else {
+      lastShort = url || '';
+      setHint('这是淘宝短链，网页版没法直接展开（静态托管没有后端）：点下面「打开链接取商品 ID」→ 商品页出来后复制地址栏网址 → 回到本页点「读取剪贴板」', 'err');
+    }
     if (P) P.showShortHelp({
       row: 'shareShortRow',
       link: 'shareShortOpen',
