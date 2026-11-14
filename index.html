@@ -60,6 +60,17 @@
   .lt-close { position:absolute; top:6px; right:6px; width:34px; height:34px; line-height:1; font-size:22px; color:#9aa0a6; background:none; border:0; border-radius:50%; cursor:pointer; }
   .lt-close:hover { background:#f3f4f6; color:#374151; }
   body.lt-lock { overflow:hidden; }
+  /* 红包口令卡：跑马灯上方，2 列复制按钮（最后一个跨两列） */
+  .hb-grid-card { padding:16px 20px; }
+  .hb-card-title { margin-bottom:10px; }
+  .hb-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .hb-copy-btn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:11px 8px; border:1px solid #f2cdc6; border-radius:9px; background:#fff5f2; color:#c0392b; font-family:inherit; font-size:14px; font-weight:700; line-height:1.35; text-align:center; cursor:pointer; transition:background .12s; }
+  .hb-copy-btn:hover { background:#ffe9e3; }
+  .hb-copy-btn:active { filter:brightness(.97); }
+  .hb-copy-btn .hb-sub { font-size:11px; font-weight:400; color:#8a8f99; }
+  .hb-copy-btn.done { background:#e8f7ec; border-color:#a9e0ba; color:#16a34a; }
+  .hb-copy-btn.done .hb-sub { color:#16a34a; }
+  .hb-span2 { grid-column:1 / -1; }
   .note { font-size:12px; color:var(--sub); line-height:1.8; }
   .shop { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
   .shop-divider { width:1px; align-self:stretch; background:var(--line); }
@@ -105,6 +116,20 @@
       <div class="shop-title">关注「乔克大叔的小卖铺」</div>
     </div>
     <div class="shop-divider"></div>
+  </div>
+
+  <!-- 红包口令卡：跑马灯上方，2 列按钮，点击复制口令去淘宝打开（文案在脚本 HB7_TEXTS） -->
+  <div class="card hb-grid-card" id="hbCard">
+    <div class="label qr-label hb-card-title">红包口令 · 点击复制 淘宝打开</div>
+    <div class="hb-grid">
+      <button class="hb-copy-btn" type="button">秒杀红包<span class="hb-sub">点击复制 淘宝打开</span></button>
+      <button class="hb-copy-btn" type="button">签到红包<span class="hb-sub">点击复制 淘宝打开</span></button>
+      <button class="hb-copy-btn" type="button">省钱购红包<span class="hb-sub">点击复制 淘宝打开</span></button>
+      <button class="hb-copy-btn" type="button">福利购红包<span class="hb-sub">点击复制 淘宝打开</span></button>
+      <button class="hb-copy-btn" type="button">猫超省钱购<span class="hb-sub">点击复制 淘宝打开</span></button>
+      <button class="hb-copy-btn" type="button">猫超福利<span class="hb-sub">点击复制 淘宝打开</span></button>
+      <button class="hb-copy-btn hb-span2" type="button">百补红包<span class="hb-sub">点击复制 淘宝打开</span></button>
+    </div>
   </div>
 
   <div class="marquee" role="note" aria-label="百补6万2次 和秒杀6万2次共用次数，秒杀6万黑可走百补6万">
@@ -3537,6 +3562,21 @@ window.TBParse = (function(){
   bindCopy(document.getElementById('shopCopyBtn'),
     '【淘宝】07£KwSSfsLA89d✔ https://m.tb.cn/h.7YTa2ECwqJOLASh  CZ193 乔克大叔的小卖铺\n点击链接直接打开 或者 淘宝搜索直接打开',
     'shop-copy-btn', '点击复制<br>打开淘宝直达乔克店铺首页');
+
+  // 红包口令卡（跑马灯上方）：按钮顺序与 HB7_TEXTS 一一对应，点击复制整段口令
+  var HB7_TEXTS = [
+    '18￥ MF278 zK3j6e0catv￥ https://m.tb.cn/h.jQ177Af  淘宝秒杀福利攻略',
+    '59￥ tG-#22>lD Zswm6e0aim7￥ https://m.tb.cn/h.jkLmWug  淘宝签到领福利',
+    '78￥ HU287 nskD6e0bNGg￥ https://m.tb.cn/h.jkLMZvM  淘宝省钱购',
+    '28￥ tG-#22>lD kzQ36e01dVV￥ https://m.tb.cn/h.j9VUAXf  淘宝福利购',
+    '68￥ HU108 3aHI6e0Xpyw￥ https://m.tb.cn/h.jQ17RY1  猫超省钱购',
+    '57￥ MF278 KXuX6e0XAN0￥ https://m.tb.cn/h.jQ1iRgu  天喵超市福利攻略',
+    '38￥ CZ005 bahu6e02ZAN￥ https://m.tb.cn/h.jQ1ixqg  百亿补贴福利攻略'
+  ];
+  var hb7Btns = document.querySelectorAll('.hb-copy-btn');
+  for (var h = 0; h < hb7Btns.length; h++){
+    bindCopy(hb7Btns[h], HB7_TEXTS[h], 'hb-copy-btn', hb7Btns[h].innerHTML);
+  }
 
   // ---- 跑马灯速度：按实测宽度换算时长，保证「每秒滚动多少像素」恒定 ----
   // 这样以后改文案（变长/变短）都不用再手调 CSS 里的秒数；改速度只改 SPEED。
