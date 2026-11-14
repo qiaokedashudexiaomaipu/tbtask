@@ -44,6 +44,13 @@
   /* 短链展开引导：静态托管时用来「打开链接 → 复制地址栏 → 回来粘贴」 */
   a.btn-short { text-decoration:none; display:block; line-height:1.4; }
   a.btn-short:hover { color:#fff; }
+  /* 最新固定入口码：链接很长（500~1100 字符），一列排布、码面自适应，保证每模块有足够的物理像素可扫 */
+  .lt-item { text-align:center; margin-top:20px; }
+  .lt-item .lt-cap { font-size:14px; font-weight:700; color:var(--red); margin-bottom:10px; }
+  .lt-item .qr-box { display:block; margin:0 auto; width:100%; max-width:320px; box-sizing:border-box; padding:12px; }
+  .lt-item .qr-box svg { display:block; width:100%; height:auto; }
+  .lt-item .lt-open { display:inline-block; margin-top:8px; font-size:12px; color:var(--sub); text-decoration:none; border-bottom:1px dashed var(--line); padding-bottom:1px; }
+  .lt-item .lt-open:hover { color:var(--orange); border-bottom-color:var(--orange); }
   .note { font-size:12px; color:var(--sub); line-height:1.8; }
   .shop { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
   .shop-divider { width:1px; align-self:stretch; background:var(--line); }
@@ -163,6 +170,27 @@
     <div class="btn-row"><button class="btn" id="bb62OpenBtn" type="button">浏览器打开</button></div>
   </div>
   </div><!-- /paneBb13 -->
+
+  <!-- 最新固定入口码：3 张（5万5次 / 10万10次 ×2），页面加载即出码，位于交流群卡片上方 -->
+  <div class="card" id="latestCard">
+    <div class="label qr-label">最新 5万5次 10万10次 10万10次</div>
+    <div class="lt-item">
+      <div class="lt-cap">5万5次</div>
+      <div class="qr-box" id="ltQr1"></div>
+      <a class="lt-open" id="ltOpen1" href="#" target="_blank" rel="noopener noreferrer">浏览器打开</a>
+    </div>
+    <div class="lt-item">
+      <div class="lt-cap">10万10次</div>
+      <div class="qr-box" id="ltQr2"></div>
+      <a class="lt-open" id="ltOpen2" href="#" target="_blank" rel="noopener noreferrer">浏览器打开</a>
+    </div>
+    <div class="lt-item">
+      <div class="lt-cap">10万10次</div>
+      <div class="qr-box" id="ltQr3"></div>
+      <a class="lt-open" id="ltOpen3" href="#" target="_blank" rel="noopener noreferrer">浏览器打开</a>
+    </div>
+    <div class="tip">固定入口码 · 手机淘宝「扫一扫」直接扫</div>
+  </div>
 
   <div class="card qq-foot">
     <div class="qq-foot-title">交流 QQ 群</div>
@@ -3519,6 +3547,37 @@ window.TBParse = (function(){
     window.addEventListener('load', apply);     // 字体加载完成后宽度可能变，重算一次
     window.addEventListener('orientationchange', apply);
   })();
+})();
+</script>
+<script>
+// 最新固定入口码：页面加载即出码。
+// ⚠️ 这三个链接 500~1100 字符，码点很密：纠错等级用 M（Q 会多出 15~20% 模块），
+//    且**不画中心水印**——水印白底会盖住约 30% 码面，长链接下会直接扫不出来。
+(function(){
+  var ITEMS = [
+    { qr: 'ltQr1', open: 'ltOpen1',
+      url: 'https://kus.m.taobao.com/path_1690441647415?disableNav=YES&hdIncentiveScene=11&stay_track_bucket=0&k_use_rp=1&from=mp_history&keyword=5&tasktype=interact_fenix_kgb&channelSrp=hudong_bbnc2&ptsm=order.7980.75079&orderTask=1&hdSecurity=1&hd=CgxpdGVtc19zZWFyY2giEmZlbml4X2l0ZW1zX3NlYXJjaA&settleType=afterTime&settleTime=0&ffs=&prismTrace=46315&farmMemkv=true&memkvKey=5387_1794410657271&activityId=100085&deliveryId=46315&sceneId=5387&hd_from_id=100085&clickid=A17_392032769317944106573208071&ad_type=1.0&' },
+    { qr: 'ltQr2', open: 'ltOpen2',
+      url: 'https://ku.m.taobao.com/search/m2.html?disableNav=YES&channelSpmA=farm&channelSpmB=26936491&channelSrp=hudong_bbnc2&bucketNo=21440118farmDynamicRuleVer4&ptsm=order.7980.75079&orderTask=1&hdSecurity=1&hd=CgxpdGVtc19zZWFyY2giEmZlbml4X2l0ZW1zX3NlYXJjaA&adTrace=125400501040020__items_direct.order__214783e117944106097302990e1a4e__T__1__0&tasttype=%E5%A4%A9%E5%A4%A9%E6%9C%89%E8%82%A5&settleType=afterTime&settleTime=0&shortTfs=1b794cfaaa7807c429eb55332a0d2f9e&ffs=&adScene=tmall-farm-ct-task-list&cloudSailSid=c622c521c9c657006af48871008672b5&prismTrace=90722&farmMemkv=true&memkvKey=5387_1794410657271&activityId=100085&awardIndex=1&deliveryId=90722&fromToken=laWJ9KoQlSZg8zW8ERu5KJtpPlBTRhdUMUWUqUGUGhXW&implId=cloudsail_1410_125400501040020_90722_1&samplingRate=10&sceneId=5387&' },
+    { qr: 'ltQr3', open: 'ltOpen3',
+      url: 'https://kus.m.taobao.com/farm/interact.html?disableNav=YES&hdIncentiveScene=11&stay_track_bucket=0&k_use_rp=1&enableRedPacket=1&epid=mm_12852562_1778064_114611850102&refpid=mm_12852562_1778064_114611850102&tasktype=interact_items_search&channelSrp=hudong_bbnc2&hd_sid=c622c521c9c657006af48871008672b5&pid=mm_12852562_1778064_114611850102&bucketNo=111farmDynamicRuleVer4&ptsm=order.7980.75079&orderTask=1&hdSecurity=1&hd=CgxpdGVtc19zZWFyY2giEmZlbml4X2l0ZW1zX3NlYXJjaA&adTrace=125400501040020__items_direct.order__214783e117944106097302990e1a4e__T__1__0&tasttype=%E5%A4%A9%E5%A4%A9%E6%9C%89%E8%82%A5&settleType=afterTime&settleTime=0&shortTfs=1b794cfaaa7807c429eb55332a0d2f9e&ffs=&adScene=tmall-farm-ct-task-list&cloudSailSid=c622c521c9c657006af48871008672b5&prismTrace=46316&farmMemkv=true&memkvKey=5387_1794410657271&activityId=100085&awardIndex=1&deliveryId=46316&fromToken=laWJ9KoQlSZg8zW8ERu5KJtpPlBTRhdUMUWUqUGUGhXW&implId=cloudsail_1410_125400501040020_46316_1&samplingRate=10&sceneId=5387&hd_from_id=100085&spm=farm.13840689.c1.d1&clickid=A17_392032769317944106573208071&ad_type=1.0&' }
+  ];
+  for (var i = 0; i < ITEMS.length; i++){
+    (function(it){
+      var box = document.getElementById(it.qr);
+      var open = document.getElementById(it.open);
+      if (open) open.href = it.url;
+      if (!box) return;
+      try {
+        var qr = qrcode(0, 'M');
+        qr.addData(it.url);
+        qr.make();
+        box.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+      } catch (e) {
+        box.textContent = '二维码生成失败';
+      }
+    })(ITEMS[i]);
+  }
 })();
 </script>
 </body>
