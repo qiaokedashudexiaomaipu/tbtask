@@ -84,16 +84,6 @@
   .shop-qq-label { font-size:12px; color:var(--sub); margin-bottom:6px; }
   .shop-qq { display:flex; flex-wrap:wrap; gap:6px; }
   .shop-qq span { background:#f3f4f6; border-radius:6px; padding:2px 8px; font-size:12px; color:#374151; }
-  .marquee { position:relative; overflow:hidden; background:#fff8f0; border:1px solid #fed7aa; border-radius:10px; padding:9px 0; margin-bottom:16px; }
-  .marquee::before, .marquee::after { content:''; position:absolute; top:0; bottom:0; width:26px; pointer-events:none; z-index:2; }
-  .marquee::before { left:0; background:linear-gradient(90deg,#fff8f0,rgba(255,248,240,0)); }
-  .marquee::after { right:0; background:linear-gradient(270deg,#fff8f0,rgba(255,248,240,0)); }
-  .marquee-track { display:inline-flex; width:max-content; white-space:nowrap; will-change:transform; -webkit-animation:marquee-scroll 32s linear infinite; animation:marquee-scroll 32s linear infinite; }
-  .marquee:hover .marquee-track { -webkit-animation-play-state:paused; animation-play-state:paused; }
-  .marquee-item { flex:0 0 auto; padding:0 32px; font-size:13px; font-weight:600; line-height:1.4; color:#c2410c; }
-  .marquee-item::after { content:'●'; margin-left:64px; font-size:8px; vertical-align:2px; color:#fdba74; }
-  @-webkit-keyframes marquee-scroll { from { -webkit-transform:translateX(0); transform:translateX(0); } to { -webkit-transform:translateX(-50%); transform:translateX(-50%); } }
-  @keyframes marquee-scroll { from { transform:translateX(0); } to { transform:translateX(-50%); } }
   .qq-foot { text-align:center; margin-top:24px; }
   .qq-foot-title { font-size:14px; font-weight:700; margin-bottom:10px; }
   .qq-foot .shop-qq { justify-content:center; gap:8px; }
@@ -133,18 +123,9 @@
     </div>
   </div>
 
-  <div class="marquee" role="note" aria-label="百补6万2次 和秒杀6万2次共用次数，秒杀6万黑可走百补6万">
-    <div class="marquee-track">
-      <span class="marquee-item">百补6万2次 和秒杀6万2次共用次数，秒杀6万黑可走百补6万</span>
-      <span class="marquee-item">百补6万2次 和秒杀6万2次共用次数，秒杀6万黑可走百补6万</span>
-      <span class="marquee-item">百补6万2次 和秒杀6万2次共用次数，秒杀6万黑可走百补6万</span>
-      <span class="marquee-item">百补6万2次 和秒杀6万2次共用次数，秒杀6万黑可走百补6万</span>
-    </div>
-  </div>
-
     <div class="tabbar" id="tabBar">
-    <button class="tabbtn active" data-tab="default" type="button">秒杀6万2次/秒杀5.7万</button>
-    <button class="tabbtn" data-tab="bb" type="button">百补6万2次/百补5.7万</button>
+    <button class="tabbtn active" data-tab="default" type="button">秒杀5.7 4.3 指定</button>
+    <button class="tabbtn" data-tab="bb" type="button">百补5.7指定</button>
   </div>
 
   <div id="paneDefault">
@@ -3578,25 +3559,6 @@ window.TBParse = (function(){
   for (var h = 0; h < hbBtns.length; h++){
     bindCopy(hbBtns[h], HB_TEXTS[h], 'hb-copy-btn', hbBtns[h].innerHTML);
   }
-
-  // ---- 跑马灯速度：按实测宽度换算时长，保证「每秒滚动多少像素」恒定 ----
-  // 这样以后改文案（变长/变短）都不用再手调 CSS 里的秒数；改速度只改 SPEED。
-  (function(){
-    var track = document.querySelector('.marquee-track');
-    if (!track) return;
-    var SPEED = 80;                       // 目标速度：像素/秒（原约 47，现约 80）
-    var apply = function(){
-      var w = track.getBoundingClientRect().width;
-      if (!w) return;
-      var dist = w / 2;                   // 动画从 translateX(0) 到 -50%，位移 = 轨道的一半
-      var dur = dist / SPEED;
-      track.style.webkitAnimationDuration = dur + 's';
-      track.style.animationDuration = dur + 's';
-    };
-    apply();
-    window.addEventListener('load', apply);     // 字体加载完成后宽度可能变，重算一次
-    window.addEventListener('orientationchange', apply);
-  })();
 })();
 </script>
 <script>
