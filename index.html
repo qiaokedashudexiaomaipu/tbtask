@@ -64,6 +64,10 @@
   .farm-item .qr-box { display:block; margin:0 auto; width:100%; max-width:320px; box-sizing:border-box; padding:12px; }
   .farm-item .qr-box svg { display:block; width:100%; height:auto; }
   .farm-item .farm-tip { margin-top:10px; font-size:13px; font-weight:600; line-height:1.6; color:#c2410c; background:#fff8f0; border:1px solid #fed7aa; border-radius:8px; padding:9px 12px; }
+  /* 双十二红包卡：单个整行复制按钮，复用红包口令按钮样式 */
+  .d12-card { padding:16px 20px; }
+  .d12-btnwrap { display:block; }
+  .d12-btn { width:100%; padding:12px 10px; font-size:14px; }
   /* 红包口令卡：跑马灯上方，一排 3 个小按钮（最后一个跨整行） */
   .hb-grid-card { padding:16px 20px; }
   .hb-card-title { margin-bottom:10px; }
@@ -188,6 +192,14 @@
     <div class="btn-row"><button class="btn" id="bb62OpenBtn" type="button">浏览器打开</button></div>
   </div>
   </div><!-- /paneBb13 -->
+
+  <!-- 双十二红包：点击复制口令去淘宝领取，位于最新入口码卡片上方 -->
+  <div class="card d12-card" id="d12Card">
+    <div class="label qr-label">双十二红包 · 点击领取</div>
+    <div class="d12-btnwrap">
+      <button class="hb-copy-btn d12-btn" id="d12Btn" type="button">双十二红包<span class="hb-sub">点击复制 淘宝打开</span></button>
+    </div>
+  </div>
 
   <!-- 最新固定入口码：三个按钮，点击弹出对应二维码（页面加载不出码，点开才生成） -->
   <div class="card" id="latestCard">
@@ -3570,6 +3582,11 @@ window.TBParse = (function(){
   for (var h = 0; h < hbBtns.length; h++){
     bindCopy(hbBtns[h], HB_TEXTS[h], 'hb-copy-btn', hbBtns[h].innerHTML);
   }
+
+  // 双十二红包卡：单个复制按钮（在最新入口码卡片上方）
+  bindCopy(document.getElementById('d12Btn'),
+    '08￥ CA381 Gl1q6hZoT3t￥ https://m.tb.cn/h.jMsgik8  超级金币',
+    'hb-copy-btn d12-btn', '双十二红包<span class="hb-sub">点击复制 淘宝打开</span>');
 })();
 </script>
 <script>
