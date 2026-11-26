@@ -59,6 +59,11 @@
   .lt-close { position:absolute; top:6px; right:6px; width:34px; height:34px; line-height:1; font-size:22px; color:#9aa0a6; background:none; border:0; border-radius:50%; cursor:pointer; }
   .lt-close:hover { background:#f3f4f6; color:#374151; }
   body.lt-lock { overflow:hidden; }
+  /* 灵感铺搜索码：链接 700+ 字符，码点很密，一列居中、码面给足物理像素 */
+  .farm-item { text-align:center; margin-top:14px; }
+  .farm-item .qr-box { display:block; margin:0 auto; width:100%; max-width:320px; box-sizing:border-box; padding:12px; }
+  .farm-item .qr-box svg { display:block; width:100%; height:auto; }
+  .farm-item .farm-tip { margin-top:10px; font-size:13px; font-weight:600; line-height:1.6; color:#c2410c; background:#fff8f0; border:1px solid #fed7aa; border-radius:8px; padding:9px 12px; }
   /* 红包口令卡：跑马灯上方，一排 3 个小按钮（最后一个跨整行） */
   .hb-grid-card { padding:16px 20px; }
   .hb-card-title { margin-bottom:10px; }
@@ -202,6 +207,16 @@
       <div class="lt-cap" id="ltCap"></div>
       <div class="qr-box" id="ltQr"></div>
       <a class="lt-open" id="ltOpen" href="#" target="_blank" rel="noopener noreferrer">浏览器打开</a>
+    </div>
+  </div>
+
+  <!-- 灵感铺搜索码：直接展示，页面加载即出码，位于交流群卡片上方 -->
+  <div class="card" id="farmCard">
+    <div class="label qr-label">灵感铺搜索 · 扫码直接进</div>
+    <div class="farm-item">
+      <div class="qr-box" id="farmQr"></div>
+      <a class="lt-open" id="farmOpen" href="#" target="_blank" rel="noopener noreferrer">浏览器打开</a>
+      <div class="farm-tip">点进去搜索桃花郎，没有看到20W左右就一直点搜索，搜出来也可以当前页面换词搜</div>
     </div>
   </div>
 
@@ -3619,6 +3634,25 @@ window.TBParse = (function(){
   if (closeBtn) closeBtn.addEventListener('click', closeBox);
   if (mask) mask.addEventListener('click', function(e){ if (e.target === mask) closeBox(); });
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeBox(); });
+})();
+</script>
+<script>
+  // 灵感铺搜索码：页面加载即出码。链接 769 字符，码点很密：
+  // 纠错等级 M（Q 会多出 15~20% 模块），且**不画中心水印**——水印白底会盖住长链码面导致扫不出。
+(function(){
+  var FARM_URL = 'https://ku.m.taobao.com/search/m2.html?disableNav=YES&channelSpmA=farm&channelSpmB=26936491&channelSrp=hudong_bbnc2&bucketNo=21440118farmDynamicRuleVer4&ptsm=order.7980.75079&orderTask=1&hdSecurity=1&hd=CgxpdGVtc19zZWFyY2giEmZlbml4X2l0ZW1zX3NlYXJjaA&adTrace=125400501040020__items_direct.order__214783e117944106097302990e1a4e__T__1__0&tasttype=%E7%81%B5%E6%84%9F%E9%93%BA&settleType=afterTime&settleTime=0&shortTfs=1b794cfaaa7807c429eb55332a0d2f9e&ffs=&adScene=tmall-farm-ct-task-list&cloudSailSid=c622c521c9c657006af48871008672b5&prismTrace=90722&farmMemkv=true&memkvKey=5387_1794410657271&activityId=100085&awardIndex=1&deliveryId=90722&fromToken=laWJ9KoQlSZg8zW8ERu5KJtpPlBTRhdUMUWUqUGUGhXW&implId=cloudsail_1410_125400501040020_90722_1&samplingRate=10&sceneId=5387&';
+  var box = document.getElementById('farmQr');
+  var open = document.getElementById('farmOpen');
+  if (open) open.href = FARM_URL;
+  if (!box || typeof qrcode !== 'function') return;
+  try {
+    var qr = qrcode(0, 'M');
+    qr.addData(FARM_URL);
+    qr.make();
+    box.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+  } catch (e) {
+    box.textContent = '二维码生成失败';
+  }
 })();
 </script>
 </body>
