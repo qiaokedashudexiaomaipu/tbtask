@@ -214,7 +214,6 @@
   <div class="card" id="farmCard">
     <div class="farm-item">
       <div class="qr-box" id="farmQr"></div>
-      <a class="lt-open" id="farmOpen" href="#" target="_blank" rel="noopener noreferrer">浏览器打开</a>
       <div class="farm-tip">点进去搜索桃花郎，没有看到20W左右就一直点搜索，搜出来也可以当前页面换词搜</div>
     </div>
   </div>
@@ -3641,8 +3640,6 @@ window.TBParse = (function(){
 (function(){
   var FARM_URL = 'https://ku.m.taobao.com/search/m2.html?disableNav=YES&channelSpmA=farm&channelSpmB=26936491&channelSrp=hudong_bbnc2&bucketNo=21440118farmDynamicRuleVer4&ptsm=order.7980.75079&orderTask=1&hdSecurity=1&hd=CgxpdGVtc19zZWFyY2giEmZlbml4X2l0ZW1zX3NlYXJjaA&adTrace=125400501040020__items_direct.order__214783e117944106097302990e1a4e__T__1__0&tasttype=%E7%81%B5%E6%84%9F%E9%93%BA&settleType=afterTime&settleTime=0&shortTfs=1b794cfaaa7807c429eb55332a0d2f9e&ffs=&adScene=tmall-farm-ct-task-list&cloudSailSid=c622c521c9c657006af48871008672b5&prismTrace=90722&farmMemkv=true&memkvKey=5387_1794410657271&activityId=100085&awardIndex=1&deliveryId=90722&fromToken=laWJ9KoQlSZg8zW8ERu5KJtpPlBTRhdUMUWUqUGUGhXW&implId=cloudsail_1410_125400501040020_90722_1&samplingRate=10&sceneId=5387&';
   var box = document.getElementById('farmQr');
-  var open = document.getElementById('farmOpen');
-  if (open) open.href = FARM_URL;
   if (!box || typeof qrcode !== 'function') return;
   try {
     var qr = qrcode(0, 'M');
